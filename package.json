@@ -1,0 +1,13 @@
+{
+	"name": "Fedora Project",
+	"version": "0.0.1",
+	"description": "fdr",
+	"dependencies": {
+		"express": "^4.10.2",
+		"socket.io": "^1.7.2"
+	}
+	"scripts": {
+		"start": "node server.js"
+	},
+	"main": "server.js"
+}
