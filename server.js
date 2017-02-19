@@ -10,23 +10,43 @@ app.get('/', function(req, res){
 	res.sendfile('index.html');
 });
 
-function Player(id, x, y, rotation, color){
+http.listen(3000, function(){
+	console.log('listening on *:3000');
+});
+
+//Game vars
+let planeSize = {
+	'x': 500,
+	'y': 500
+}
+
+function Player(id, name, x, y, rotation){
 	this.id = id;
+	this.name = name;
 	this.x = x;
 	this.y = y;
 	this.rotation = rotation;
-	this.color = color;
+	this.hp = 10;
+	this.score = 0;
+}
+
+function Bullet(id, x, y, sx, sy, rotation){
+	this.id = id;
+	this.x = x;
+	this.y = y;
+	this.speedX = sx;
+	this.speedY = sy;
+	this.rotation = rotation;
 }
 
 var serverData = {
-	'playerList': []
+	'playerList': [],
+	'bulletList': []
 };
 
 io.on('connection', function(client){
 	console.log('Connected ID: ' + client.id);
-	var player = new Player(client.id);
-	serverData.playerList.push(player);
-	
+	var player;
 	io.emit('server data', serverData);
 	
 	client.on('disconnect', function(){
@@ -36,28 +56,91 @@ io.on('connection', function(client){
 		});
 	});
 	
+	client.on('respawn', function(){
+		player = new Player(client.id);
+		serverData.playerList.push(player);
+	});
+	
 	client.on('client data', function(clientPlayer){
-		player.x = clientPlayer.x;
-		player.y = clientPlayer.y;
-		player.rotation = clientPlayer.rotation;
-		player.color = clientPlayer.color;
-		
-		updatePlayerList(client.id, player.x, player.y, player.rotation, player.color);
+		updatePlayerInList(client.id, clientPlayer.name, clientPlayer.x, clientPlayer.y, clientPlayer.rotation);
 		io.emit('server data', serverData);
+	});
+	
+	client.on('shot fired', function(){
+		var speedX = 10 * Math.cos(player.rotation - Math.PI / 2);
+		var speedY = 10 * Math.sin(player.rotation - Math.PI / 2);
+		
+		var bullet = new Bullet(player.id, player.x, player.y, speedX, speedY, player.rotation);
+		serverData.bulletList.push(bullet);
 	});
 });
 
-function updatePlayerList(id, x, y, rotation, color){
-	for (player in serverData.playerList){
-		if (player.id == id) {
+function updatePlayerInList(id, name, x, y, rotation){
+	for (var i = 0; i < serverData.playerList.length; i++){
+		let player = serverData.playerList[i];
+		if (player.id == id){
+			player.name = name;
 			player.x = x;
 			player.y = y;
 			player.rotation = rotation;
-			player.color = color;
 		}
 	}
 }
 
-http.listen(3000, function(){
-	console.log('listening on *:3000');
-});
+function bulletMove(){
+	for (var i = 0; i < serverData.bulletList.length; i++){
+		let bullet = serverData.bulletList[i];
+		for (var j = 0; j < serverData.playerList.length; j++){
+			let player = serverData.playerList[j];
+			
+			if (player.id == bullet.id) {
+				var a = bullet.x - player.x;
+				var b = bullet.y - player.y;
+				var dist = Math.hypot(a, b);
+			
+				if (dist > 1000){
+					serverData.bulletList.splice(i, 1);
+				}
+			}
+		}
+		
+		bullet.x += bullet.speedX;
+		bullet.y += bullet.speedY;
+	}
+}
+
+function bulletCollision(){
+	for (var i = 0; i < serverData.bulletList.length; i++){
+		let bullet = serverData.bulletList[i];
+		for (var j = 0; j < serverData.playerList.length; j++){
+			let player = serverData.playerList[j];
+		
+			if (player.id != bullet.id){
+				var a = bullet.x - player.x;
+				var b = bullet.y - player.y;
+				var dist = Math.hypot(a, b);
+			
+				if (dist < 20){
+					serverData.bulletList.splice(i, 1);
+					player.hp -= 1;
+					
+					if (player.hp <= 0){
+						io.emit('death', player.id, bullet.id);
+						serverData.playerList.splice(j, 1);
+						
+						var killer = serverData.playerList.filter(function(e){
+							return e.id == bullet.id;
+						});
+						killer[0].score += 1;
+					}
+				}
+			}
+		}
+	}
+}
+
+//Compute every 10ms
+setInterval(function(){
+	bulletMove();
+	bulletCollision();
+}, 10);

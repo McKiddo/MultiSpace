@@ -1,6 +1,6 @@
 {
-	"name": "Fedora Project",
-	"version": "0.0.1",
+	"name": "Multi-Space",
+	"version": "0.1.0",
 	"description": "fdr",
 	"dependencies": {
 		"express": "^4.10.2",

@@ -1,17 +1,37 @@
 <!doctype html>
 <html>
 	<head>
-		<title>Fedora project</title>
+		<title>Multi-Space</title>
 		
 		<style>
 			* { margin: 0; padding: 0;}
 
-			body, html { height:100%; }
+			body, html {
+				height:100%;
+			}
+			
+			#nameForm {
+				margin: auto;
+				position: absolute;
+				text-align: center;
+				width: 33%;
+				top: 45%;
+				left: 33%;
+			}
+			
+			#textBox {
+				width: 49%;
+			}
+			
+			#startButton {
+				width: 50%;
+			}
 			
 			#mainCanvas {
+				display: none;
 				position: absolute;
-				width: 100%;
-				height: 100%;
+				top: 0px;
+				left: 0px;
 			}
 		</style>
 	</head>
@@ -20,6 +40,11 @@
 	<script src="https://code.jquery.com/jquery-1.11.1.js"></script>
 	
 	<body>
+		<form id='nameForm' action="">
+			Enter your extremely funny nickname (10 letters only)<br>
+			<input id='textBox' autocomplete="off"/><br>
+			<button id='startButton'>Start</button>
+		</form>
 		<canvas id='mainCanvas'>
 		<script src="index.js"></script>
 	</body>
