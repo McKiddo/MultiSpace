@@ -131,7 +131,10 @@ function bulletCollision(){
 						var killer = serverData.playerList.filter(function(e){
 							return e.id == bullet.id;
 						});
-						killer[0].score += 1;
+						
+						if (killer != 'undefined') {
+							killer[0].score += 1;
+						}
 					}
 				}
 			}
