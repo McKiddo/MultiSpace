@@ -132,7 +132,7 @@ function bulletCollision(){
 							return e.id == bullet.id;
 						});
 						
-						if (killer != 'undefined') {
+						if (killer != undefined) {
 							killer[0].score += 1;
 						}
 					}
