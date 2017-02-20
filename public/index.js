@@ -309,7 +309,7 @@ function drawDead(){
 	} else {
 		deathMessage = 'Killed by a ghost. Spooky.';
 	}
-	context.fillText(deathMessage, canvas.width/2, canvas.height/2);
+	context.fillText(deathMessage, window.innerWidth/2, window.innerHeight/2);
 }
 
 //Compute every 10ms
