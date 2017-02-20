@@ -40,8 +40,8 @@ function Bullet(id, x, y, sx, sy, rotation){
 }
 
 let planeSize = {
-	'x': 1500,
-	'y': 1000
+	'x': 2000,
+	'y': 1500
 };
 
 var serverData = {
