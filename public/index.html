@@ -3,28 +3,40 @@
 	<head>
 		<title>Multi-Space</title>
 		
+		<link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Roboto:300,400,500,700" type="text/css">
+		<link rel="stylesheet" href="https://code.getmdl.io/1.3.0/material.indigo-pink.min.css">
+		<script defer src="https://code.getmdl.io/1.3.0/material.min.js"></script>
+		
 		<style>
 			* { margin: 0; padding: 0;}
 
 			body, html {
 				height:100%;
+				background-color: #efefef;
+				font-family: 'Roboto', sans-serif;
 			}
 			
 			#nameForm {
 				margin: auto;
 				position: absolute;
 				text-align: center;
+				background-color: #ffffff;
+				font-size: 24px;
 				width: 33%;
-				top: 45%;
+				left: 33%;
+				top: 35%;
+			}
+			
+			#textBoxOuter {
+				position: relative;
+				width: 33%;
 				left: 33%;
 			}
 			
-			#textBox {
-				width: 49%;
-			}
-			
 			#startButton {
-				width: 50%;
+				position: relative;
+				width: 33%;
+				left: 33%;
 			}
 			
 			#mainCanvas {
@@ -40,10 +52,14 @@
 	<script src="https://code.jquery.com/jquery-1.11.1.js"></script>
 	
 	<body>
-		<form id='nameForm' action="">
-			Enter your extremely funny nickname (10 letters only)<br>
-			<input id='textBox' autocomplete="off"/><br>
-			<button id='startButton'>Start</button>
+		<form class="demo-card-wide mdl-card mdl-shadow--2dp" id='nameForm' action="">
+			<br>Enter your extremely funny nickname<br><font style="font-size: 16px;">(10 letters only)</font><br>
+			<div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label" id="textBoxOuter">
+				<input class="mdl-textfield__input" type="text" id="textBox">
+				<label class="mdl-textfield__label" for="textBox">Nickname</label>
+			</div>
+			<button class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect" id='startButton'>Start</button>
+			<br>
 		</form>
 		<canvas id='mainCanvas'>
 		<script src="index.js"></script>

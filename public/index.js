@@ -50,6 +50,7 @@ var localServerData = {
 	}
 };
 var thisPlayer = new Player();
+
 //Client-server interaction
 client.on('connect', function(){
 	thisPlayer.id = client.io.engine.id;
@@ -108,8 +109,8 @@ $(window).on('resize', function(e){
 });
 
 function beginGame(){
-	thisPlayer.x = localServerData.planeSize.x / 2;
-	thisPlayer.y = localServerData.planeSize.y / 2;
+	thisPlayer.x = Math.random() * ((localServerData.planeSize.x - 10) - 10) + 10;
+	thisPlayer.y = Math.random() * ((localServerData.planeSize.y - 10) - 10) + 10;
 	client.emit('respawn');
 	gameState = 1;
 }
@@ -193,7 +194,7 @@ function drawSelf(){
 	context.drawImage(playerImg, window.innerWidth / 2 - playerImg.width * scale / 2 - cameraPan.x, window.innerHeight / 2 - playerImg.height * scale / 2 - cameraPan.y, playerImg.width * scale, playerImg.height * scale);
 	context.restore();
 	
-	context.font = '8pt Calibri';
+	context.font = '8pt Roboto';
 	context.textAlign = 'center';
 	context.fillStyle = 'black';
 	
@@ -210,7 +211,7 @@ function drawSelf(){
 	
 	var displayText = thisPlayer.name + ' : ' + score;
 	context.fillText(displayText, window.innerWidth / 2 - cameraPan.x, window.innerHeight / 2 - cameraPan.y - 27);
-	context.fillRect(window.innerWidth / 2 - 15 - cameraPan.x, window.innerHeight / 2 - cameraPan.y - 25, 3 * hp, 3);
+	context.fillRect(window.innerWidth / 2 - 15 + 1.5 * (10 - hp) - cameraPan.x, window.innerHeight / 2 - cameraPan.y - 25, 3 * hp, 3);
 }
 
 function drawPlayers(playerList){
@@ -225,12 +226,12 @@ function drawPlayers(playerList){
 			context.drawImage(playerImg, player.x + offset.x - playerImg.width * scale / 2, player.y + offset.y - playerImg.height * scale / 2, playerImg.width * scale, playerImg.height * scale);
 			context.restore();
 			
-			context.font = '8pt Calibri';
+			context.font = '8pt Roboto';
 			context.textAlign = 'center';
 			context.fillStyle = 'black';
 			var displayText = player.name + ' : ' + player.score;
 			context.fillText(displayText, player.x  + offset.x, player.y + offset.y - 27);
-			context.fillRect(player.x + offset.x - 15, player.y + offset.y - 25, 3 * player.hp, 3);
+			context.fillRect(player.x + offset.x - 15 + 1.5 * (10 - player.hp), player.y + offset.y - 25, 3 * player.hp, 3);
 			context.globalAlpha = 1;
 		}
 	}
@@ -251,16 +252,22 @@ function drawBullets(bulletList){
 }
 
 function drawBounds(){
+	context.fillStyle = '#efefef';
+	context.fillRect(0, 0, window.innerWidth, window.innerHeight);
+	
+	context.fillStyle = '#ffffff';
+	context.fillRect(offset.x, offset.y, localServerData.planeSize.x, localServerData.planeSize.y);
+	
 	context.fillStyle = '#dbdbdb';
 	
-	var planeScale = 500;
+	var planeMarksScale = 500;
 	
-	for (var i = 1; i < localServerData.planeSize.x / planeScale; i++){
-		context.fillRect(i * planeScale + offset.x, 0 + offset.y, 2, localServerData.planeSize.y);
+	for (var i = 1; i < localServerData.planeSize.x / planeMarksScale; i++){
+		context.fillRect(i * planeMarksScale + offset.x, 0 + offset.y, 2, localServerData.planeSize.y);
 	}
 	
-	for (var i = 1; i < localServerData.planeSize.y / planeScale; i++){
-		context.fillRect(0 + offset.x, i * planeScale + offset.y, localServerData.planeSize.x, 2);
+	for (var i = 1; i < localServerData.planeSize.y / planeMarksScale; i++){
+		context.fillRect(0 + offset.x, i * planeMarksScale + offset.y, localServerData.planeSize.x, 2);
 	}
 	
 	context.strokeRect(0 + offset.x, 0 + offset.y, localServerData.planeSize.x, localServerData.planeSize.y);
@@ -279,12 +286,12 @@ function drawScoreboard(playerList){
 	for (var i = 0; i < scoreList.length; i++){
 		var player = scoreList[i];
 		
-		context.font = '16pt Calibri';
+		context.font = '14pt Roboto';
 		context.textAlign = 'right';
 		context.fillStyle = 'black';
 		context.fillText('Players', window.innerWidth - 30, 40);
 		var displayText = player.name + ' : ' + player.score;
-		context.font = '12pt Calibri';
+		context.font = '10pt Roboto';
 		context.fillText(displayText, window.innerWidth - 30, 60 + 20 * i);
 	}
 }
@@ -303,8 +310,8 @@ client.on('death', function(deathID, bulletID){
 });
 
 function drawDead(){
-	//context.clearRect(0, 0, canvas.width, canvas.height);
-	context.font = '60px Calibri';
+	context.textAlign = 'center';
+	context.font = '60px';
 	context.fillStyle = 'grey';
 	var killer = $.grep(localServerData.playerList, function(e){ return e.id == killerID; });
 	var deathMessage = '';
@@ -313,7 +320,7 @@ function drawDead(){
 	} else {
 		deathMessage = 'Killed by a ghost. Spooky.';
 	}
-	context.fillText(deathMessage, window.innerWidth/2, window.innerHeight/2);
+	context.fillText(deathMessage, window.innerWidth / 2, window.innerHeight / 2);
 }
 
 //Compute every 10ms
