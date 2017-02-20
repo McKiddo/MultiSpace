@@ -14,10 +14,19 @@ var scale = 0.3;
 //Control vars
 var gameState = 0;
 var move = false;
+var fireAllowed = true;
 var mouse = {
 	'x': 0,
 	'y': 0
 };
+var offset = {
+	'x': 0,
+	'y': 0
+}
+var cameraPan = {
+	'x': 0,
+	'y': 0
+}
 
 var name = '';
 var killerID = 0;
@@ -30,38 +39,39 @@ function Player(id, name, x, y, rotation){
 	this.speedX = 0;
 	this.speedY = 0;
 	this.rotation = rotation;
-	this.score = 0;
 }
 
-var thisPlayer = new Player(0, '', context.canvas.width / 2, context.canvas.height / 2, 0);
 var localServerData = {
 	'playerList': [0],
-	'bulletList': [0]
+	'bulletList': [0],
+	'planeSize': {
+		'x': 0,
+		'y': 0
+	}
 };
-
+var thisPlayer = new Player();
 //Client-server interaction
 client.on('connect', function(){
 	thisPlayer.id = client.io.engine.id;
-	client.emit('respawn');
 });
 
 client.on('server data', function(serverData){
 	localServerData = serverData;
 });
 
-client.on('death', function(deathID, bulletID){
-	if (thisPlayer.id == deathID){
-		killerID = bulletID;
-		gameState = 2;
-		setTimeout(function(){
-			thisPlayer = new Player(client.io.engine.id, name, context.canvas.width / 2, context.canvas.height / 2, 0);
-			client.emit('respawn');
-			gameState = 1;
-		}, 2000);
+//Pre-game functions
+$('#nameForm').submit(function(e){
+	name = $('#textBox').val();
+	if (name != '' && name.length <= 10){
+		thisPlayer.name = name;
+		$('#nameForm').hide();
+		$('#mainCanvas').css('display', 'block');
+		beginGame();
 	}
+	return false;
 });
 
-//Client-player interaction
+//Game functions
 $('#mainCanvas').mousemove(function(e){
 	mouse.x = e.pageX;
 	mouse.y = e.pageY;
@@ -80,38 +90,123 @@ $('#mainCanvas').mouseup(function(e){
 });
 
 $(document).keydown(function(e){
-	if (e.keyCode == 90) {
+	if (fireAllowed && e.keyCode == 90) {
 		client.emit('shot fired');
+		fireAllowed = false;
 	}
 });
 
-//Pre-game functions
-$('#nameForm').submit(function(e){
-	name = $('#textBox').val();
-	if (name != '' && name.length <= 10){
-		thisPlayer.name = name;
-		$('#nameForm').hide();
-		$('#mainCanvas').css('display', 'block');
-		gameState = 1;
+$(document).keyup(function(e){
+	if (e.keyCode == 90) {
+		fireAllowed = true;
 	}
-	return false;
 });
 
-//Game functions
-function sendData() {
+$(window).on('resize', function(e){
+	context.canvas.width = window.innerWidth;
+	context.canvas.height = window.innerHeight;
+});
+
+function beginGame(){
+	thisPlayer.x = localServerData.planeSize.x / 2;
+	thisPlayer.y = localServerData.planeSize.y / 2;
+	client.emit('respawn');
+	gameState = 1;
+}
+
+function sendData(){
 	client.emit('client data', thisPlayer);
+}
+
+function getOffset(){
+	offset.x = window.innerWidth / 2 - thisPlayer.x;
+	offset.y = window.innerHeight / 2 - thisPlayer.y;
+	
+	if (localServerData.planeSize.x < window.innerWidth){
+		offset.x = (window.innerWidth - localServerData.planeSize.x) / 2;
+		cameraPan.x = -(thisPlayer.x - window.innerWidth / 2 + offset.x);
+	} else {
+		if (offset.x > 0){
+			cameraPan.x = offset.x;
+			offset.x = 0;
+		} else if (offset.x < -localServerData.planeSize.x + window.innerWidth){
+			cameraPan.x = offset.x + localServerData.planeSize.x - window.innerWidth;
+			offset.x = -localServerData.planeSize.x + window.innerWidth;
+		} else {
+			cameraPan.x = 0;
+		}
+	}
+	
+	if (localServerData.planeSize.y < window.innerHeight){
+		offset.y = (window.innerHeight - localServerData.planeSize.y) / 2;
+		cameraPan.y = -(thisPlayer.y - window.innerHeight / 2 + offset.y);
+	} else {
+		if (offset.y > 0){
+			cameraPan.y = offset.y;
+			offset.y = 0;
+		} else if (offset.y < -localServerData.planeSize.y + window.innerHeight){
+			cameraPan.y = offset.y + localServerData.planeSize.y - window.innerHeight;
+			offset.y = -localServerData.planeSize.y + window.innerHeight;
+		} else {
+			cameraPan.y = 0;
+		}
+	}
 }
 
 function physic(){
 	if (move){
-		thisPlayer.speedX += (mouse.x - (thisPlayer.x + playerImg.width * scale / 2)) / 3000;
-		thisPlayer.speedY += (mouse.y - (thisPlayer.y + playerImg.height * scale / 2)) / 3000;
+		thisPlayer.speedX += (mouse.x - (window.innerWidth / 2) + cameraPan.x) / 3000;
+		thisPlayer.speedY += (mouse.y - (window.innerHeight / 2) + cameraPan.y) / 3000;
 	}
 	
-	thisPlayer.x += thisPlayer.speedX;
-	thisPlayer.y += thisPlayer.speedY;
-	thisPlayer.rotation = Math.atan2(mouse.y - (thisPlayer.y + playerImg.height * scale / 2), mouse.x - (thisPlayer.x + playerImg.width * scale / 2)) + Math.PI / 2;
+	var wallFriction = 3;
+	
+	if (thisPlayer.x < 0 || thisPlayer.x > localServerData.planeSize.x){
+		thisPlayer.speedX = -thisPlayer.speedX;
+		thisPlayer.x += thisPlayer.speedX;
+		thisPlayer.speedX = thisPlayer.speedX / wallFriction;
+	} else {
+		thisPlayer.x += thisPlayer.speedX;
+	}
+	
+	if (thisPlayer.y < 0 || thisPlayer.y > localServerData.planeSize.y){
+		thisPlayer.speedY = -thisPlayer.speedY;
+		thisPlayer.y += thisPlayer.speedY;
+		thisPlayer.speedY = thisPlayer.speedY / wallFriction;
+	} else {
+		thisPlayer.y += thisPlayer.speedY;
+	}
+	
+	thisPlayer.rotation = Math.atan2(mouse.y - window.innerHeight / 2 + cameraPan.y, mouse.x - window.innerWidth / 2 + cameraPan.x) + Math.PI / 2;
 	sendData();
+}
+
+function drawSelf(){
+	context.save();
+	context.translate(window.innerWidth / 2 - cameraPan.x, window.innerHeight / 2 - cameraPan.y);
+	context.rotate(thisPlayer.rotation);
+	context.translate(-(window.innerWidth / 2 - cameraPan.x), -(window.innerHeight / 2 - cameraPan.y));
+	context.drawImage(playerImg, window.innerWidth / 2 - playerImg.width * scale / 2 - cameraPan.x, window.innerHeight / 2 - playerImg.height * scale / 2 - cameraPan.y, playerImg.width * scale, playerImg.height * scale);
+	context.restore();
+	
+	context.font = '8pt Calibri';
+	context.textAlign = 'center';
+	context.fillStyle = 'black';
+	
+	var score = 0;
+	var hp = 10;
+	var currentPlayer = $.grep(localServerData.playerList, function(e){
+		return e.id == thisPlayer.id;
+	});
+	
+	if (currentPlayer[0] != undefined){
+		score = currentPlayer[0].score;
+		hp = currentPlayer[0].hp;
+	}
+	
+	var displayText = thisPlayer.name + ' : ' + score;
+	context.fillText(displayText, window.innerWidth / 2 - cameraPan.x, window.innerHeight / 2 - cameraPan.y - 27);
+	context.fillRect(window.innerWidth / 2 - 15 - cameraPan.x, window.innerHeight / 2 - cameraPan.y - 25, 3 * hp, 3);
 }
 
 function drawPlayers(playerList){
@@ -120,42 +215,21 @@ function drawPlayers(playerList){
 		if (player.id != thisPlayer.id) {
 			context.globalAlpha = 0.6;
 			context.save();
-			context.translate(player.x + playerImg.width * scale / 2, player.y + playerImg.height * scale / 2);
+			context.translate(player.x + offset.x, player.y + offset.y);
 			context.rotate(player.rotation);
-			context.translate(-(player.x + playerImg.width * scale / 2), -(player.y + playerImg.height * scale / 2));
-			context.drawImage(playerImg, player.x, player.y, playerImg.width * scale, playerImg.height * scale);
+			context.translate(-(player.x + offset.x), -(player.y + offset.y));
+			context.drawImage(playerImg, player.x + offset.x - playerImg.width * scale / 2, player.y + offset.y - playerImg.height * scale / 2, playerImg.width * scale, playerImg.height * scale);
 			context.restore();
 			
-			context.font = '8pt Calibri'
+			context.font = '8pt Calibri';
 			context.textAlign = 'center';
 			context.fillStyle = 'black';
 			var displayText = player.name + ' : ' + player.score;
-			context.fillText(displayText, player.x + playerImg.width * scale / 2, player.y - 7);
-			context.fillRect(player.x + playerImg.width * scale / 2 - 15, player.y - 5, 3 * player.hp, 3);
+			context.fillText(displayText, player.x  + offset.x, player.y + offset.y - 27);
+			context.fillRect(player.x + offset.x - 15, player.y + offset.y - 25, 3 * player.hp, 3);
 			context.globalAlpha = 1;
 		}
 	}
-}
-
-function drawSelf(){
-	context.save();
-	context.translate(thisPlayer.x + playerImg.width * scale / 2, thisPlayer.y + playerImg.height * scale / 2);
-	context.rotate(thisPlayer.rotation);
-	context.translate(-(thisPlayer.x + playerImg.width * scale / 2), -(thisPlayer.y + playerImg.height * scale / 2));
-	context.drawImage(playerImg, thisPlayer.x, thisPlayer.y, playerImg.width * scale, playerImg.height * scale);
-	context.restore();
-	
-	context.font = '8pt Calibri'
-	context.textAlign = 'center';
-	context.fillStyle = 'black';
-	
-	var currentPlayer = $.grep(localServerData.playerList, function(e){
-		return e.id == thisPlayer.id;
-	});
-	
-	var displayText = thisPlayer.name + ' : ' + currentPlayer[0].score;
-	context.fillText(displayText, thisPlayer.x + playerImg.width * scale / 2, thisPlayer.y - 7);
-	context.fillRect(thisPlayer.x + playerImg.width * scale / 2 - 15, thisPlayer.y - 5, 3 * currentPlayer[0].hp, 3);
 }
 
 function drawBullets(bulletList){
@@ -163,39 +237,87 @@ function drawBullets(bulletList){
 		let bullet = bulletList[i];
 		context.globalAlpha = 1;
 		context.save();
-		context.translate(bullet.x + playerImg.width * scale / 2, bullet.y + playerImg.height * scale / 2);
+		context.translate(bullet.x  + offset.x, bullet.y + offset.y);
 		context.rotate(bullet.rotation);
-		context.translate(-(bullet.x + playerImg.width * scale / 2), -(bullet.y + playerImg.height * scale / 2));
+		context.translate(-(bullet.x  + offset.x), -(bullet.y + offset.y));
 		context.fillStyle = "grey";
-		context.fillRect(bullet.x + playerImg.width * scale / 2, bullet.y + playerImg.height * scale / 2, 2, 10);
+		context.fillRect(bullet.x  + offset.x, bullet.y + offset.y, 2, 10);
 		context.restore();
 	}
 }
 
+function drawBounds(){
+	context.fillStyle = '#dbdbdb';
+	
+	var planeScale = 500;
+	
+	for (var i = 1; i < localServerData.planeSize.x / planeScale; i++){
+		context.fillRect(i * planeScale + offset.x, 0 + offset.y, 2, localServerData.planeSize.y);
+	}
+	
+	for (var i = 1; i < localServerData.planeSize.y / planeScale; i++){
+		context.fillRect(0 + offset.x, i * planeScale + offset.y, localServerData.planeSize.x, 2);
+	}
+	
+	context.strokeRect(0 + offset.x, 0 + offset.y, localServerData.planeSize.x, localServerData.planeSize.y);
+}
+
+function drawScoreboard(playerList){
+	for (var i = 0; i < playerList.length; i++){
+		var player = playerList[i];
+		
+		context.font = '16pt Calibri';
+		context.textAlign = 'right';
+		context.fillStyle = 'black';
+		context.fillText('Players:', window.innerWidth - 10, 20);
+		var displayText = player.name + ' : ' + player.score;
+		context.font = '12pt Calibri';
+		context.fillText(displayText, window.innerWidth - 10, 40 + 20 * i);
+	}
+}
+
 //Post-game functions
+client.on('death', function(deathID, bulletID){
+	if (thisPlayer.id == deathID){
+		killerID = bulletID;
+		gameState = 2;
+		setTimeout(function(){
+			thisPlayer = new Player(client.io.engine.id, name, window.innerHeight / 2, window.innerHeight / 2, 0);
+			client.emit('respawn');
+			gameState = 1;
+		}, 2000);
+	}
+});
+
 function drawDead(){
 	//context.clearRect(0, 0, canvas.width, canvas.height);
 	context.font = '60px Calibri';
 	context.fillStyle = 'grey';
 	var killer = $.grep(localServerData.playerList, function(e){ return e.id == killerID; });
-	var deathMessage = 'Killed by ' + killer[0].name;
+	var deathMessage = '';
+	if (killer[0] != undefined){
+		deathMessage = 'Killed by ' + killer[0].name;
+	} else {
+		deathMessage = 'Killed by a ghost. Spooky.';
+	}
 	context.fillText(deathMessage, canvas.width/2, canvas.height/2);
 }
 
 //Compute every 10ms
 window.setInterval(function(){
+	getOffset();
 	if (gameState == 1){
 		physic();
 	}
 	
 	context.clearRect(0, 0, canvas.width, canvas.height);
+	drawBounds();
 	drawBullets(localServerData.bulletList);
 	drawPlayers(localServerData.playerList);
-	
 	if (gameState == 1){
 		drawSelf();
 	}
-	
+	drawScoreboard(localServerData.playerList);
 	if (gameState == 2){
 		drawDead();
 	}

@@ -1,7 +1,7 @@
 {
 	"name": "Multi-Space",
-	"version": "0.1.0",
-	"description": "fdr",
+	"version": "0.2.0",
+	"description": "Simple socket.io powered online game",
 	"dependencies": {
 		"express": "^4.10.2",
 		"socket.io": "^1.7.2"

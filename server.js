@@ -15,10 +15,6 @@ http.listen(3000, function(){
 });
 
 //Game vars
-let planeSize = {
-	'x': 500,
-	'y': 500
-}
 
 function Player(id, name, x, y, rotation){
 	this.id = id;
@@ -39,9 +35,15 @@ function Bullet(id, x, y, sx, sy, rotation){
 	this.rotation = rotation;
 }
 
+let planeSize = {
+	'x': 500,
+	'y': 500
+}
+
 var serverData = {
 	'playerList': [],
-	'bulletList': []
+	'bulletList': [],
+	'planeSize': planeSize
 };
 
 io.on('connection', function(client){
@@ -57,8 +59,20 @@ io.on('connection', function(client){
 	});
 	
 	client.on('respawn', function(){
-		player = new Player(client.id);
-		serverData.playerList.push(player);
+		var inList = false;
+		
+		for (var i = 0; i < serverData.playerList.length; i++){
+			if (player === serverData.playerList[i]){
+				inList = true;
+			}
+		}
+		
+		if (!inList){
+			player = new Player(client.id);
+			serverData.playerList.push(player);
+		} else {
+			console.log('Respawn failed ID: ' + player.id);
+		}
 	});
 	
 	client.on('client data', function(clientPlayer){
