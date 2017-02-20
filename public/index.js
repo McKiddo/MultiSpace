@@ -126,12 +126,12 @@ function getOffset(){
 		offset.x = (window.innerWidth - localServerData.planeSize.x) / 2;
 		cameraPan.x = -(thisPlayer.x - window.innerWidth / 2 + offset.x);
 	} else {
-		if (offset.x > 0){
-			cameraPan.x = offset.x;
-			offset.x = 0;
-		} else if (offset.x < -localServerData.planeSize.x + window.innerWidth){
-			cameraPan.x = offset.x + localServerData.planeSize.x - window.innerWidth;
-			offset.x = -localServerData.planeSize.x + window.innerWidth;
+		if (offset.x > 20){
+			cameraPan.x = offset.x - 20;
+			offset.x = 20;
+		} else if (offset.x < -localServerData.planeSize.x - 20 + window.innerWidth){
+			cameraPan.x = offset.x + localServerData.planeSize.x - window.innerWidth + 20;
+			offset.x = -localServerData.planeSize.x - 20 + window.innerWidth;
 		} else {
 			cameraPan.x = 0;
 		}
@@ -141,12 +141,12 @@ function getOffset(){
 		offset.y = (window.innerHeight - localServerData.planeSize.y) / 2;
 		cameraPan.y = -(thisPlayer.y - window.innerHeight / 2 + offset.y);
 	} else {
-		if (offset.y > 0){
-			cameraPan.y = offset.y;
-			offset.y = 0;
-		} else if (offset.y < -localServerData.planeSize.y + window.innerHeight){
-			cameraPan.y = offset.y + localServerData.planeSize.y - window.innerHeight;
-			offset.y = -localServerData.planeSize.y + window.innerHeight;
+		if (offset.y > 20){
+			cameraPan.y = offset.y - 20;
+			offset.y = 20;
+		} else if (offset.y < -localServerData.planeSize.y - 20 + window.innerHeight){
+			cameraPan.y = offset.y + localServerData.planeSize.y - window.innerHeight + 20;
+			offset.y = -localServerData.planeSize.y - 20 + window.innerHeight;
 		} else {
 			cameraPan.y = 0;
 		}
@@ -263,16 +263,25 @@ function drawBounds(){
 }
 
 function drawScoreboard(playerList){
-	for (var i = 0; i < playerList.length; i++){
-		var player = playerList[i];
+	var scoreList = playerList.sort(function(a, b){
+			var keyA = a.score;
+			var keyB = b.score;
+
+			if(keyA < keyB) return -1;
+			if(keyA > keyB) return 1;
+			return 0;
+		});
+	
+	for (var i = 0; i < scoreList.length; i++){
+		var player = scoreList[i];
 		
 		context.font = '16pt Calibri';
 		context.textAlign = 'right';
 		context.fillStyle = 'black';
-		context.fillText('Players:', window.innerWidth - 10, 20);
+		context.fillText('Players', window.innerWidth - 30, 40);
 		var displayText = player.name + ' : ' + player.score;
 		context.font = '12pt Calibri';
-		context.fillText(displayText, window.innerWidth - 10, 40 + 20 * i);
+		context.fillText(displayText, window.innerWidth - 30, 60 + 20 * i);
 	}
 }
 
