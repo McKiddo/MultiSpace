@@ -311,7 +311,7 @@ client.on('death', function(deathID, bulletID){
 
 function drawDead(){
 	context.textAlign = 'center';
-	context.font = '60px';
+	context.font = '60px Roboto';
 	context.fillStyle = 'grey';
 	var killer = $.grep(localServerData.playerList, function(e){ return e.id == killerID; });
 	var deathMessage = '';
