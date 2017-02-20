@@ -41,27 +41,31 @@
 			#mainCanvas {
 				display: none;
 				position: absolute;
-				top: 0px;
-				left: 0px;
+				top: 0;
+				left: 0;
 			}
 			
 			#chatForm {
 				display: none;
 				position: absolute;
 				font-size: 24px;
-				width: 20%;
-				right: 1%;
-				bottom: 1%;
+				width: 285px;
+				right: 10px;
+				bottom: 10px;
 			}
 			
 			#chatBoxOuter {
 				position: relative;
-				width: 70%;
-				right: 0%;
+				width: 200px;
+				right: 0;
+			}
+
+			#chatBox {
+				text-align: right;
 			}
 			
 			#chatButton {
-			right: 0%;
+			right: 0;
 			}
 		</style>
 	</head>
@@ -72,13 +76,13 @@
 	<body>
 		<form class="demo-card-wide mdl-card mdl-shadow--2dp" id='nameForm'>
 			<br>Enter your extremely funny nickname<br>
-			<font style="font-size: 16px;">(10 letters only)</font>
+			<span style="font-size: 16px;">(10 letters only)</span>
 			<div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label" id="textBoxOuter">
 				<input class="mdl-textfield__input" type="text" id="textBox" autocomplete="off">
 				<label class="mdl-textfield__label" for="textBox">Nickname</label>
 			</div>
 			<button class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect" id='startButton'>Start</button>
-			<br><font style="font-size: 16px;">Move with mouse. Press Z to shoot.</font><br>
+			<br><span style="font-size: 16px;">Move with mouse. Press Z to shoot.</span><br>
 		</form>
 		
 		<canvas id='mainCanvas'></canvas>

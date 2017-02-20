@@ -3,7 +3,7 @@ var app = express();
 var http = require('http').Server(app);
 var io = require('socket.io')(http);
 
-process.env.PWD = process.cwd()
+process.env.PWD = process.cwd();
 app.use(express.static(process.env.PWD + '/public'));
 
 app.get('/', function(req, res){
@@ -15,15 +15,19 @@ http.listen(3000, function(){
 });
 
 //Game vars
-
-function Player(id, name, x, y, rotation){
+function Player(id){
 	this.id = id;
-	this.name = name;
-	this.x = x;
-	this.y = y;
-	this.rotation = rotation;
+	this.name = '';
+	this.x = 0;
+	this.y = 0;
+    this.speedX = 0;
+    this.speedY = 0;
+	this.rotation = 0;
 	this.hp = 10;
-	this.score = 0;
+    this.score = 0;
+    this.dead = false;
+    this.fireAllowed = true;
+    this.nameSet = false;
 }
 
 function Bullet(id, x, y, sx, sy, rotation){
@@ -38,7 +42,7 @@ function Bullet(id, x, y, sx, sy, rotation){
 let planeSize = {
 	'x': 1500,
 	'y': 1000
-}
+};
 
 var serverData = {
 	'playerList': [],
@@ -48,8 +52,11 @@ var serverData = {
 
 io.on('connection', function(client){
 	console.log('Connected ID: ' + client.id);
-	var player;
-	io.emit('server data', serverData);
+
+    var player = new Player(client.id);
+    serverData.playerList.push(player);
+
+    io.emit('server data', serverData);
 	
 	client.on('disconnect', function(){
 		console.log('Disconnected ID: ' + client.id);
@@ -58,8 +65,12 @@ io.on('connection', function(client){
 		});
 	});
 	
-	client.on('client message', function(msg, playerName){
-		io.emit('server message', msg + ' : ' + playerName);
+	client.on('client message', function(msg){
+		if (msg.length <= 30) {
+            io.emit('server message', msg + ' : ' + player.name);
+        } else {
+			console.log('Attempted illegal message ID: ' + player.id);
+		}
 	});
 	
 	client.on('respawn', function(){
@@ -70,26 +81,33 @@ io.on('connection', function(client){
 				inList = true;
 			}
 		}
+
+		player.nameSet = true;
 		
-		if (!inList){
-			player = new Player(client.id);
-			serverData.playerList.push(player);
-		} else {
-			console.log('Respawn failed ID: ' + player.id);
+		if (player.dead) {
+            player.hp = 10;
+            player.dead = false;
 		}
+        console.log('server respawn');
 	});
 	
 	client.on('client data', function(clientPlayer){
+		if (clientPlayer.name.length > 10){
+			clientPlayer.name.substring(0, 10);
+		}
+
 		updatePlayerInList(client.id, clientPlayer.name, clientPlayer.x, clientPlayer.y, clientPlayer.rotation);
 		io.emit('server data', serverData);
 	});
 	
 	client.on('shot fired', function(){
-		var speedX = 10 * Math.cos(player.rotation - Math.PI / 2);
-		var speedY = 10 * Math.sin(player.rotation - Math.PI / 2);
-		
-		var bullet = new Bullet(player.id, player.x, player.y, speedX, speedY, player.rotation);
-		serverData.bulletList.push(bullet);
+		if (!player.dead) {
+            var speedX = 10 * Math.cos(player.rotation - Math.PI / 2);
+            var speedY = 10 * Math.sin(player.rotation - Math.PI / 2);
+
+            var bullet = new Bullet(player.id, player.x, player.y, speedX, speedY, player.rotation);
+            serverData.bulletList.push(bullet);
+        }
 	});
 });
 
@@ -116,7 +134,7 @@ function bulletMove(){
 				var b = bullet.y - player.y;
 				var dist = Math.hypot(a, b);
 			
-				if (dist > 1000){
+				if (dist > 2000){
 					serverData.bulletList.splice(i, 1);
 				}
 			}
@@ -133,7 +151,7 @@ function bulletCollision(){
 		for (var j = 0; j < serverData.playerList.length; j++){
 			let player = serverData.playerList[j];
 		
-			if (player.id != bullet.id){
+			if (player.id != bullet.id && !player.dead){
 				var a = bullet.x - player.x;
 				var b = bullet.y - player.y;
 				var dist = Math.hypot(a, b);
@@ -144,7 +162,7 @@ function bulletCollision(){
 					
 					if (player.hp <= 0){
 						io.emit('death', player.id, bullet.id);
-						serverData.playerList.splice(j, 1);
+						player.dead = true;
 						
 						var killer = serverData.playerList.filter(function(e){
 							return e.id == bullet.id;

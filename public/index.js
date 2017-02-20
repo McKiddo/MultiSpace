@@ -3,10 +3,11 @@ var client = io();
 //Canvas
 var canvas = document.getElementById("mainCanvas");
 var context = canvas.getContext("2d");
+canvas.style.cursor = "default";
 context.canvas.width = window.innerWidth;
 context.canvas.height = window.innerHeight;
 			
-//Player appearence
+//Player appearance
 var playerImg = new Image();
 playerImg.src = 'player.png';
 var scale = 0.3;
@@ -22,23 +23,27 @@ var mouse = {
 var offset = {
 	'x': 0,
 	'y': 0
-}
+};
 var cameraPan = {
 	'x': 0,
 	'y': 0
-}
+};
 
 var name = '';
 var killerID = 0;
 
-function Player(id, name, x, y, rotation){
-	this.id = id;
-	this.name = name;
-	this.x = x;
-	this.y = y;
+function Player(){
+	this.id = '';
+	this.name = '';
+	this.x = 0;
+	this.y = 0;
 	this.speedX = 0;
 	this.speedY = 0;
-	this.rotation = rotation;
+	this.rotation = 0;
+    this.hp = 10;
+    this.score = 0;
+    this.dead = false;
+    this.fireAllowed = true;
 }
 
 var localServerData = {
@@ -60,6 +65,7 @@ client.on('connect', function(){
 
 client.on('server data', function(serverData){
 	localServerData = serverData;
+	readPlayer();
 });
 
 client.on('server message', function(msg){
@@ -70,7 +76,7 @@ client.on('server message', function(msg){
 });
 
 //Pre-game functions
-$('#nameForm').submit(function(e){
+$('#nameForm').submit(function(){
 	name = $('#textBox').val();
 	if (name != '' && name.length <= 10){
 		thisPlayer.name = name;
@@ -83,11 +89,12 @@ $('#nameForm').submit(function(e){
 });
 
 //In-game functions
-$('#chatForm').submit(function(e){
-	msg = $('#chatBox').val();
+$('#chatForm').submit(function(){
+	var chatBox = $('#chatBox');
+	var msg = chatBox .val();
 	if (msg != ''){
-		$('#chatBox').val('');
-		client.emit('client message', msg, thisPlayer.name);
+        chatBox.val('');
+		client.emit('client message', msg);
 	}
 	return false;
 });
@@ -95,15 +102,13 @@ $('#chatForm').submit(function(e){
 $('#mainCanvas').mousemove(function(e){
 	mouse.x = e.pageX;
 	mouse.y = e.pageY;
-});
-
-$('#mainCanvas').mousedown(function(e){
+})
+				.mousedown(function(e){
 	if (e.which == 1) {
 		move = true;
 	}
-});
-
-$('#mainCanvas').mouseup(function(e){
+})
+				.mouseup(function(e){
 	if (e.which == 1) {
 		move = false;
 	}
@@ -122,16 +127,29 @@ $(document).keyup(function(e){
 	}
 });
 
-$(window).on('resize', function(e){
+$(window).on('resize', function(){
 	context.canvas.width = window.innerWidth;
 	context.canvas.height = window.innerHeight;
 });
 
 function beginGame(){
-	thisPlayer.x = Math.random() * ((localServerData.planeSize.x - 10) - 10) + 10;
-	thisPlayer.y = Math.random() * ((localServerData.planeSize.y - 10) - 10) + 10;
-	client.emit('respawn');
+    thisPlayer.x = Math.random() * ((localServerData.planeSize.x - 10) - 10) + 10;
+    thisPlayer.y = Math.random() * ((localServerData.planeSize.y - 10) - 10) + 10;
+    client.emit('respawn');
 	gameState = 1;
+	console.log('client respawn');
+}
+
+function readPlayer() {
+	var thisPlayerServer = $.grep(localServerData.playerList, function(e){
+        return e.id == thisPlayer.id;
+    })[0];
+
+	thisPlayer.name = thisPlayerServer.name;
+    thisPlayer.hp = thisPlayerServer.hp;
+    thisPlayer.score = thisPlayerServer.score;
+    thisPlayer.dead = thisPlayerServer.dead;
+    thisPlayer.fireAllowed = thisPlayerServer.fireAllowed;
 }
 
 function sendData(){
@@ -178,9 +196,9 @@ function physic(){
 		thisPlayer.speedX += (mouse.x - (window.innerWidth / 2) + cameraPan.x) / 3000;
 		thisPlayer.speedY += (mouse.y - (window.innerHeight / 2) + cameraPan.y) / 3000;
 	}
-	
+
 	var wallFriction = 3;
-	
+
 	if (thisPlayer.x < 0 || thisPlayer.x > localServerData.planeSize.x){
 		thisPlayer.speedX = -thisPlayer.speedX;
 		thisPlayer.x += thisPlayer.speedX;
@@ -189,7 +207,7 @@ function physic(){
 	} else {
 		thisPlayer.x += thisPlayer.speedX;
 	}
-	
+
 	if (thisPlayer.y < 0 || thisPlayer.y > localServerData.planeSize.y){
 		thisPlayer.speedY = -thisPlayer.speedY;
 		thisPlayer.y += thisPlayer.speedY;
@@ -198,7 +216,7 @@ function physic(){
 	} else {
 		thisPlayer.y += thisPlayer.speedY;
 	}
-	
+
 	thisPlayer.rotation = Math.atan2(mouse.y - window.innerHeight / 2 + cameraPan.y, mouse.x - window.innerWidth / 2 + cameraPan.x) + Math.PI / 2;
 	sendData();
 }
@@ -215,26 +233,15 @@ function drawSelf(){
 	context.textAlign = 'center';
 	context.fillStyle = 'black';
 	
-	var score = 0;
-	var hp = 10;
-	var currentPlayer = $.grep(localServerData.playerList, function(e){
-		return e.id == thisPlayer.id;
-	});
-	
-	if (currentPlayer[0] != undefined){
-		score = currentPlayer[0].score;
-		hp = currentPlayer[0].hp;
-	}
-	
-	var displayText = thisPlayer.name + ' : ' + score;
+	var displayText = thisPlayer.name + ' : ' + thisPlayer.score;
 	context.fillText(displayText, window.innerWidth / 2 - cameraPan.x, window.innerHeight / 2 - cameraPan.y - 27);
-	context.fillRect(window.innerWidth / 2 - 15 + 1.5 * (10 - hp) - cameraPan.x, window.innerHeight / 2 - cameraPan.y - 25, 3 * hp, 3);
+	context.fillRect(window.innerWidth / 2 - 15 + 1.5 * (10 - thisPlayer.hp) - cameraPan.x, window.innerHeight / 2 - cameraPan.y - 25, 3 * thisPlayer.hp, 3);
 }
 
 function drawPlayers(playerList){
 	for (var i = 0; i < playerList.length; i++){
 		let player = playerList[i];
-		if (player.id != thisPlayer.id) {
+		if (player.id != thisPlayer.id && player.nameSet) {
 			context.globalAlpha = 0.6;
 			context.save();
 			context.translate(player.x + offset.x, player.y + offset.y);
@@ -280,14 +287,14 @@ function drawBounds(){
 	var planeMarksScale = 500;
 	
 	for (var i = 1; i < localServerData.planeSize.x / planeMarksScale; i++){
-		context.fillRect(i * planeMarksScale + offset.x, 0 + offset.y, 2, localServerData.planeSize.y);
+		context.fillRect(i * planeMarksScale + offset.x, offset.y, 2, localServerData.planeSize.y);
 	}
 	
-	for (var i = 1; i < localServerData.planeSize.y / planeMarksScale; i++){
-		context.fillRect(0 + offset.x, i * planeMarksScale + offset.y, localServerData.planeSize.x, 2);
+	for (i = 1; i < localServerData.planeSize.y / planeMarksScale; i++){
+		context.fillRect(offset.x, i * planeMarksScale + offset.y, localServerData.planeSize.x, 2);
 	}
 	
-	context.strokeRect(0 + offset.x, 0 + offset.y, localServerData.planeSize.x, localServerData.planeSize.y);
+	context.strokeRect(offset.x, offset.y, localServerData.planeSize.x, localServerData.planeSize.y);
 }
 
 function drawScoreboard(playerList){
@@ -309,7 +316,11 @@ function drawScoreboard(playerList){
 	for (var i = 0; i < scoreList.length; i++){
 		var player = scoreList[i];
 		var displayText = player.name + ' : ' + player.score;
-		context.fillText(displayText, window.innerWidth - 30, 60 + 20 * i);
+		if (player.name != ''){
+            context.fillText(displayText, window.innerWidth - 30, 60 + 20 * i);
+		} else {
+            context.fillText('Joining...', window.innerWidth - 30, 60 + 20 * i);
+		}
 	}
 }
 
@@ -331,9 +342,7 @@ client.on('death', function(deathID, bulletID){
 		killerID = bulletID;
 		gameState = 2;
 		setTimeout(function(){
-			thisPlayer = new Player(client.io.engine.id, name, window.innerHeight / 2, window.innerHeight / 2, 0);
-			client.emit('respawn');
-			gameState = 1;
+			beginGame()
 		}, 2000);
 	}
 });
