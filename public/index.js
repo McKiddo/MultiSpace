@@ -44,13 +44,14 @@ function Player(id, name, x, y, rotation){
 var localServerData = {
 	'playerList': [],
 	'bulletList': [],
-	'messageList': [],
 	'planeSize': {
 		'x': 0,
 		'y': 0
 	}
 };
 var thisPlayer = new Player();
+
+var messageList = [];
 
 //Client-server interaction
 client.on('connect', function(){
@@ -59,6 +60,13 @@ client.on('connect', function(){
 
 client.on('server data', function(serverData){
 	localServerData = serverData;
+});
+
+client.on('server message', function(msg){
+	if (messageList.length > 10){
+		messageList.pop();
+	}
+	messageList.unshift(msg);
 });
 
 //Pre-game functions
@@ -305,7 +313,7 @@ function drawScoreboard(playerList){
 	}
 }
 
-function drawChat(messageList){
+function drawChat(){
 	context.font = '10pt Roboto';
 	context.textAlign = 'right';
 	context.fillStyle = 'black';
@@ -359,7 +367,7 @@ window.setInterval(function(){
 		drawSelf();
 	}
 	drawScoreboard(localServerData.playerList);
-	drawChat(localServerData.messageList);
+	drawChat();
 	if (gameState == 2){
 		drawDead();
 	}

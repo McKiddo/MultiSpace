@@ -43,7 +43,6 @@ let planeSize = {
 var serverData = {
 	'playerList': [],
 	'bulletList': [],
-	'messageList': [],
 	'planeSize': planeSize
 };
 
@@ -60,10 +59,7 @@ io.on('connection', function(client){
 	});
 	
 	client.on('client message', function(msg, playerName){
-		if (serverData.messageList.length > 10){
-			serverData.messageList.pop();
-		}
-		serverData.messageList.unshift(msg + ' : ' + playerName);
+		io.emit('server message', msg + ' : ' + playerName);
 	});
 	
 	client.on('respawn', function(){
