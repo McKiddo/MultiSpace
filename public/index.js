@@ -110,7 +110,7 @@ $('#mainCanvas').mouseup(function(e){
 });
 
 $(document).keydown(function(e){
-	if (fireAllowed && e.keyCode == 90) {
+	if (fireAllowed && e.keyCode == 90 && e.target.tagName.toLowerCase() != 'input') {
 		client.emit('shot fired');
 		fireAllowed = false;
 	}
