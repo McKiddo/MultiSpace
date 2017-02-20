@@ -164,7 +164,9 @@ function physic(){
 	if (thisPlayer.x < 0 || thisPlayer.x > localServerData.planeSize.x){
 		thisPlayer.speedX = -thisPlayer.speedX;
 		thisPlayer.x += thisPlayer.speedX;
+		thisPlayer.x += thisPlayer.speedX;
 		thisPlayer.speedX = thisPlayer.speedX / wallFriction;
+		console.log('x: ' + thisPlayer.x + ' sx: ' + thisPlayer.speedX);
 	} else {
 		thisPlayer.x += thisPlayer.speedX;
 	}
@@ -172,7 +174,9 @@ function physic(){
 	if (thisPlayer.y < 0 || thisPlayer.y > localServerData.planeSize.y){
 		thisPlayer.speedY = -thisPlayer.speedY;
 		thisPlayer.y += thisPlayer.speedY;
+		thisPlayer.y += thisPlayer.speedY;
 		thisPlayer.speedY = thisPlayer.speedY / wallFriction;
+		console.log('y: ' + thisPlayer.y + ' sy: ' + thisPlayer.speedY);
 	} else {
 		thisPlayer.y += thisPlayer.speedY;
 	}
@@ -267,8 +271,8 @@ function drawScoreboard(playerList){
 			var keyA = a.score;
 			var keyB = b.score;
 
-			if(keyA < keyB) return -1;
-			if(keyA > keyB) return 1;
+			if(keyA > keyB) return -1;
+			if(keyA < keyB) return 1;
 			return 0;
 		});
 	
