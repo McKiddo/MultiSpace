@@ -45,6 +45,25 @@
 				top: 0px;
 				left: 0px;
 			}
+			
+			#chatForm {
+				display: none;
+				position: absolute;
+				font-size: 24px;
+				width: 20%;
+				right: 1%;
+				bottom: 1%;
+			}
+			
+			#chatBoxOuter {
+				position: relative;
+				width: 70%;
+				right: 0%;
+			}
+			
+			#chatButton {
+			right: 0%;
+			}
 		</style>
 	</head>
   
@@ -52,7 +71,7 @@
 	<script src="https://code.jquery.com/jquery-1.11.1.js"></script>
 	
 	<body>
-		<form class="demo-card-wide mdl-card mdl-shadow--2dp" id='nameForm' action="">
+		<form class="demo-card-wide mdl-card mdl-shadow--2dp" id='nameForm'>
 			<br>Enter your extremely funny nickname<br><font style="font-size: 16px;">(10 letters only)</font><br>
 			<div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label" id="textBoxOuter">
 				<input class="mdl-textfield__input" type="text" id="textBox" autocomplete="off">
@@ -61,7 +80,17 @@
 			<button class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect" id='startButton'>Start</button>
 			<br>
 		</form>
-		<canvas id='mainCanvas'>
+		
+		<canvas id='mainCanvas'></canvas>
+		
+		<form id='chatForm'>
+			<div class="mdl-textfield mdl-js-textfield" id="chatBoxOuter">
+				<input class="mdl-textfield__input" type="text" id="chatBox" autocomplete="off">
+				<label class="mdl-textfield__label" for="chatBox"></label>
+			</div>
+			<button class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect" id='chatButton'>Say</button>
+		</form>
+		
 		<script src="index.js"></script>
 	</body>
 </html>

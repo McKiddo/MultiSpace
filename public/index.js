@@ -42,8 +42,9 @@ function Player(id, name, x, y, rotation){
 }
 
 var localServerData = {
-	'playerList': [0],
-	'bulletList': [0],
+	'playerList': [],
+	'bulletList': [],
+	'messageList': [],
 	'planeSize': {
 		'x': 0,
 		'y': 0
@@ -67,12 +68,22 @@ $('#nameForm').submit(function(e){
 		thisPlayer.name = name;
 		$('#nameForm').hide();
 		$('#mainCanvas').css('display', 'block');
+		$('#chatForm').css('display', 'block');
 		beginGame();
 	}
 	return false;
 });
 
-//Game functions
+//In-game functions
+$('#chatForm').submit(function(e){
+	msg = $('#chatBox').val();
+	if (msg != ''){
+		$('#chatBox').val('');
+		client.emit('client message', msg, thisPlayer.name);
+	}
+	return false;
+});
+
 $('#mainCanvas').mousemove(function(e){
 	mouse.x = e.pageX;
 	mouse.y = e.pageY;
@@ -167,7 +178,6 @@ function physic(){
 		thisPlayer.x += thisPlayer.speedX;
 		thisPlayer.x += thisPlayer.speedX;
 		thisPlayer.speedX = thisPlayer.speedX / wallFriction;
-		console.log('x: ' + thisPlayer.x + ' sx: ' + thisPlayer.speedX);
 	} else {
 		thisPlayer.x += thisPlayer.speedX;
 	}
@@ -177,7 +187,6 @@ function physic(){
 		thisPlayer.y += thisPlayer.speedY;
 		thisPlayer.y += thisPlayer.speedY;
 		thisPlayer.speedY = thisPlayer.speedY / wallFriction;
-		console.log('y: ' + thisPlayer.y + ' sy: ' + thisPlayer.speedY);
 	} else {
 		thisPlayer.y += thisPlayer.speedY;
 	}
@@ -283,16 +292,28 @@ function drawScoreboard(playerList){
 			return 0;
 		});
 	
+	context.font = '14pt Roboto';
+	context.textAlign = 'right';
+	context.fillStyle = 'black';
+	context.fillText('Players', window.innerWidth - 30, 40);
+	context.font = '10pt Roboto';
+	
 	for (var i = 0; i < scoreList.length; i++){
 		var player = scoreList[i];
-		
-		context.font = '14pt Roboto';
-		context.textAlign = 'right';
-		context.fillStyle = 'black';
-		context.fillText('Players', window.innerWidth - 30, 40);
 		var displayText = player.name + ' : ' + player.score;
-		context.font = '10pt Roboto';
 		context.fillText(displayText, window.innerWidth - 30, 60 + 20 * i);
+	}
+}
+
+function drawChat(messageList){
+	context.font = '10pt Roboto';
+	context.textAlign = 'right';
+	context.fillStyle = 'black';
+	
+	for (var i = 0; i < messageList.length; i++){
+		var message = messageList[i];
+		
+		context.fillText(message, window.innerWidth - 30, window.innerHeight - 80 - 20 * i);
 	}
 }
 
@@ -338,6 +359,7 @@ window.setInterval(function(){
 		drawSelf();
 	}
 	drawScoreboard(localServerData.playerList);
+	drawChat(localServerData.messageList);
 	if (gameState == 2){
 		drawDead();
 	}

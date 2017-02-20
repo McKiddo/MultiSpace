@@ -43,6 +43,7 @@ let planeSize = {
 var serverData = {
 	'playerList': [],
 	'bulletList': [],
+	'messageList': [],
 	'planeSize': planeSize
 };
 
@@ -56,6 +57,13 @@ io.on('connection', function(client){
 		serverData.playerList = serverData.playerList.filter(function(player){
 			return player.id != client.id;
 		});
+	});
+	
+	client.on('client message', function(msg, playerName){
+		if (serverData.messageList.length > 10){
+			serverData.messageList.pop();
+		}
+		serverData.messageList.unshift(msg + ' : ' + playerName);
 	});
 	
 	client.on('respawn', function(){
