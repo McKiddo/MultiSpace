@@ -8,10 +8,13 @@ context.canvas.width = window.innerWidth;
 context.canvas.height = window.innerHeight;
 
 //Lag compensation
-var buffer = {
-    'x': -1,
-    'y': -1
-};
+function Buffer(id) {
+    this.id = id;
+    this.x = -1;
+    this.y = -1;
+}
+var thisBuffer = new Buffer(0);
+var bufferList = [];
 
 //Player appearance
 var playerImg = new Image();
@@ -204,7 +207,7 @@ function sendData(){
 }
 
 function drawSelf(){
-    if (thisPlayer.x == buffer.x && thisPlayer.y == buffer.y){
+    if (thisPlayer.x == thisBuffer.x && thisPlayer.y == thisBuffer.y){
         thisPlayer.x += thisPlayer.speedX;
         thisPlayer.y += thisPlayer.speedY;
     }
@@ -233,15 +236,24 @@ function drawSelf(){
 	context.fillText(displayText, window.innerWidth / 2 - cameraPan.x, window.innerHeight / 2 - cameraPan.y - 27);
 	context.fillRect(window.innerWidth / 2 - 15 + 1.5 * (10 - thisPlayer.hp) - cameraPan.x, window.innerHeight / 2 - cameraPan.y - 25, 3 * thisPlayer.hp, 3);
 
-    buffer.x = thisPlayer.x;
-    buffer.y = thisPlayer.y;
+    thisBuffer.x = thisPlayer.x;
+    thisBuffer.y = thisPlayer.y;
 }
 
 function drawPlayers(playerList){
 	for (var i = 0; i < playerList.length; i++){
 		let player = playerList[i];
-		if (player.id != thisPlayer.id && player.nameSet) {
-			if (!player.dead){
+		if (player.id != thisPlayer.id && player.nameSet){
+		    var buffer = bufferList.filter(function(e){
+                return e.id == player.id;
+            });
+
+            if (player.x == buffer.x && player.y == buffer.y){
+                player.x += player.speedX;
+                player.y += player.speedY;
+            }
+
+		    if (!player.dead){
                 context.globalAlpha = 0.8;
 			} else {
                 context.globalAlpha = 0.5;
@@ -271,6 +283,9 @@ function drawPlayers(playerList){
 			context.fillText(displayText, player.x  + offset.x, player.y + offset.y - 27);
 			context.fillRect(player.x + offset.x - 15 + 1.5 * (10 - player.hp), player.y + offset.y - 25, 3 * player.hp, 3);
 			context.globalAlpha = 1;
+
+			buffer.x = player.x;
+			buffer.y = player.y;
 		}
 	}
 }
