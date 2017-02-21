@@ -73,7 +73,8 @@ io.on('connection', function(client){
         var inList = false;
 
         for (var i = 0; i < serverData.playerList.length; i++){
-            if (player === serverData.playerList[i]){
+            var listedPlayer = serverData.playerList[i];
+            if (listedPlayer.id == player.id){
                 inList = true;
             }
         }
@@ -106,10 +107,8 @@ io.on('connection', function(client){
 	});
 
     client.on('client message', function(msg){
-        if (msg.length <= 30) {
+        if (msg.length <= 50) {
             io.emit('server message', msg + ' : ' + player.name);
-        } else {
-            console.log('Attempted illegal message ID: ' + player.id);
         }
     });
 });

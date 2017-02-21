@@ -88,8 +88,8 @@ $('#nameForm').submit(function(){
 //In-game functions
 $('#chatForm').submit(function(){
 	var chatBox = $('#chatBox');
-	var msg = chatBox .val();
-	if (msg != '' && msg <= 50){
+	var msg = chatBox.val();
+	if (msg != '' && msg.length <= 50){
         chatBox.val('');
 		client.emit('client message', msg);
 	}
