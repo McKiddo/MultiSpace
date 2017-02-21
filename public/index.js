@@ -6,7 +6,13 @@ var context = canvas.getContext("2d");
 canvas.style.cursor = "default";
 context.canvas.width = window.innerWidth;
 context.canvas.height = window.innerHeight;
-			
+
+//Lag compensation
+var buffer = {
+    'x': -1,
+    'y': -1
+};
+
 //Player appearance
 var playerImg = new Image();
 playerImg.src = 'player.png';
@@ -35,6 +41,8 @@ function Player(){
 	this.name = '';
 	this.x = 0;
 	this.y = 0;
+	this.speedX = 0;
+	this.speedY = 0;
 	this.rotation = 0;
     this.force = 0;
     this.hp = 10;
@@ -135,6 +143,8 @@ function readPlayer() {
 
     thisPlayer.x = thisPlayerServer.x;
     thisPlayer.y = thisPlayerServer.y;
+    thisPlayer.speedX = thisPlayerServer.speedX;
+    thisPlayer.speedY = thisPlayerServer.speedY;
 	thisPlayer.name = thisPlayerServer.name;
     thisPlayer.hp = thisPlayerServer.hp;
     thisPlayer.score = thisPlayerServer.score;
@@ -194,6 +204,11 @@ function sendData(){
 }
 
 function drawSelf(){
+    if (thisPlayer.x == buffer.x && thisPlayer.y == buffer.y){
+        thisPlayer.x += thisPlayer.speedX;
+        thisPlayer.y += thisPlayer.speedY;
+    }
+
 	context.save();
 	context.translate(window.innerWidth / 2 - cameraPan.x, window.innerHeight / 2 - cameraPan.y);
 	context.rotate(thisPlayer.rotation);
@@ -217,6 +232,9 @@ function drawSelf(){
 	var displayText = thisPlayer.name + type;
 	context.fillText(displayText, window.innerWidth / 2 - cameraPan.x, window.innerHeight / 2 - cameraPan.y - 27);
 	context.fillRect(window.innerWidth / 2 - 15 + 1.5 * (10 - thisPlayer.hp) - cameraPan.x, window.innerHeight / 2 - cameraPan.y - 25, 3 * thisPlayer.hp, 3);
+
+    buffer.x = thisPlayer.x;
+    buffer.y = thisPlayer.y;
 }
 
 function drawPlayers(playerList){
@@ -388,4 +406,4 @@ window.setInterval(function(){
 	if (gameState == 2){
 		drawDead();
 	}
-}, 10);
+}, 5);
