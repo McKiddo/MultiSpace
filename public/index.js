@@ -39,6 +39,7 @@ function Player(){
 	this.rotation = 0;
     this.force = 0;
     this.hp = 10;
+    this.streak = 0;
     this.score = 0;
     this.dead = false;
 }
@@ -75,7 +76,7 @@ client.on('server message', function(msg){
 //Pre-game functions
 $('#nameForm').submit(function(){
 	name = $('#textBox').val();
-	if (name != '' && name.length <= 10){
+	if (name != '' && name.length <= 15){
 		thisPlayer.name = name;
 		$('#nameForm').hide();
 		$('#mainCanvas').css('display', 'block');
@@ -137,6 +138,7 @@ function readPlayer() {
 	thisPlayer.name = thisPlayerServer.name;
     thisPlayer.hp = thisPlayerServer.hp;
     thisPlayer.score = thisPlayerServer.score;
+    thisPlayer.streak = thisPlayerServer.streak;
     thisPlayer.dead = thisPlayerServer.dead;
 }
 
@@ -203,7 +205,15 @@ function drawSelf(){
 	context.textAlign = 'center';
 	context.fillStyle = 'black';
 
-	var displayText = thisPlayer.name + ' : ' + thisPlayer.score;
+	var type = '-';
+
+	if (thisPlayer.streak >= 3){
+		type = '★'
+	} else if (thisPlayer.streak >= 6){
+		type = '☢'
+	}
+
+	var displayText = thisPlayer.name + ' ' + type;
 	context.fillText(displayText, window.innerWidth / 2 - cameraPan.x, window.innerHeight / 2 - cameraPan.y - 27);
 	context.fillRect(window.innerWidth / 2 - 15 + 1.5 * (10 - thisPlayer.hp) - cameraPan.x, window.innerHeight / 2 - cameraPan.y - 25, 3 * thisPlayer.hp, 3);
 }
@@ -212,7 +222,12 @@ function drawPlayers(playerList){
 	for (var i = 0; i < playerList.length; i++){
 		let player = playerList[i];
 		if (player.id != thisPlayer.id && player.nameSet) {
-			context.globalAlpha = 0.6;
+			if (!player.dead){
+                context.globalAlpha = 0.8;
+			} else {
+                context.globalAlpha = 0.5;
+			}
+
 			context.save();
 			context.translate(player.x + offset.x, player.y + offset.y);
 			context.rotate(player.rotation);
@@ -223,7 +238,16 @@ function drawPlayers(playerList){
 			context.font = '8pt Roboto';
 			context.textAlign = 'center';
 			context.fillStyle = 'black';
-			var displayText = player.name + ' : ' + player.score;
+
+            var type = '-';
+
+            if (player.streak >= 3){
+                type = '★'
+            } else if (player.streak >= 6){
+                type = '☢'
+            }
+
+			var displayText = player.name + ' ' + type;
 			context.fillText(displayText, player.x  + offset.x, player.y + offset.y - 27);
 			context.fillRect(player.x + offset.x - 15 + 1.5 * (10 - player.hp), player.y + offset.y - 25, 3 * player.hp, 3);
 			context.globalAlpha = 1;
@@ -240,7 +264,19 @@ function drawBullets(bulletList){
 		context.rotate(bullet.rotation);
 		context.translate(-(bullet.x  + offset.x), -(bullet.y + offset.y));
 		context.fillStyle = "grey";
-		context.fillRect(bullet.x  + offset.x, bullet.y + offset.y, 2, 10);
+
+		var width = 2;
+		var height = 10;
+
+		if (bullet.type == 1){
+            width = 2;
+            height = 40;
+		} else if (bullet.type == 2){
+            width = 8;
+            height = 8;
+		}
+
+		context.fillRect(bullet.x + offset.x, bullet.y + offset.y, width, height);
 		context.restore();
 	}
 }

@@ -16,8 +16,12 @@ http.listen(3000, function(){
 
 //Game vars
 let wallFriction = 3;
-let forceModifier = 15000;
-let forceLimit = 1000;
+let forceModifier = 8000;
+let forceLimit = 5000;
+
+let bullet0Speed = 10;
+let bullet1Speed = 30;
+let bullet2Speed = 3;
 
 var serverData = {
     'playerList': [],
@@ -38,19 +42,21 @@ function Player(id){
 	this.rotation = 0;
     this.force = 0;
 	this.hp = 10;
+	this.streak = 0;
     this.score = 0;
     this.dead = false;
     this.fireAllowed = true;
     this.nameSet = false;
 }
 
-function Bullet(id, x, y, sx, sy, rotation){
+function Bullet(id, x, y, sx, sy, rotation, type){
 	this.id = id;
 	this.x = x;
 	this.y = y;
 	this.speedX = sx;
 	this.speedY = sy;
 	this.rotation = rotation;
+	this.type = type;
 }
 
 //Per-player functions
@@ -86,12 +92,13 @@ io.on('connection', function(client){
 
         if (player.dead){
             player.hp = 10;
+            player.streak = 0;
             player.dead = false;
         }
     });
 	
 	client.on('client data', function(clientPlayer){
-		if (clientPlayer.name.length > 10){
+		if (clientPlayer.name.length > 15){
 			clientPlayer.name.substring(0, 10);
 		}
 
@@ -115,15 +122,30 @@ io.on('connection', function(client){
 
 //All players functions
 function createBullet(player){
-    var speedX = 5 * Math.cos(player.rotation - Math.PI / 2);
-    var speedY = 5 * Math.sin(player.rotation - Math.PI / 2);
+    var type = 0;
+    var bulletSpeed = bullet0Speed;
+    var timeout = 200;
 
-    var bullet = new Bullet(player.id, player.x, player.y, speedX, speedY, player.rotation);
+    if (player.streak >= 3){
+        type = 1;
+        bulletSpeed = bullet1Speed;
+        timeout = 100;
+    }
+    if (player.streak >= 6){
+        type = 2;
+        bulletSpeed = bullet2Speed;
+        timeout = 2000;
+    }
+
+    var speedX = bulletSpeed * Math.cos(player.rotation - Math.PI / 2);
+    var speedY = bulletSpeed * Math.sin(player.rotation - Math.PI / 2);
+
+    var bullet = new Bullet(player.id, player.x, player.y, speedX, speedY, player.rotation, type);
     serverData.bulletList.push(bullet);
 
     setTimeout(function(){
         player.fireAllowed = true;
-    }, 200);
+    }, timeout);
 }
 
 function updatePlayerInList(id, name, rotation, force){
@@ -137,7 +159,7 @@ function updatePlayerInList(id, name, rotation, force){
 	}
 }
 
-function playerPhysic(){
+function playerPhysics(){
 	for (var i = 0; i < serverData.playerList.length; i++){
         var player = serverData.playerList[i];
 
@@ -150,8 +172,15 @@ function playerPhysic(){
                 var dist = Math.hypot(a, b);
 
                 if (dist < 20){
-                    serverData.bulletList.splice(i, 1);
-                    player.hp -= 1;
+                    serverData.bulletList.splice(j, 1);
+
+                    if (bullet.type == 0) {
+                        player.hp -= 1;
+                    } else if (bullet.type == 1) {
+                        player.hp -= 0.5;
+                    } else if (bullet.type == 2) {
+                        player.hp -= 10;
+                    }
 
                     if (player.hp <= 0){
                         io.emit('death', player.id, bullet.id);
@@ -163,6 +192,7 @@ function playerPhysic(){
 
                         if (killer[0] != undefined) {
                             killer[0].score += 1;
+                            killer[0].streak += 1;
                         }
                     }
                 }
@@ -223,8 +253,8 @@ function bulletMove(){
 	}
 }
 
-//Compute every 5ms
+//Compute every 10ms
 setInterval(function(){
-	playerPhysic();
+	playerPhysics();
 	bulletMove();
-}, 5);
+}, 10);
