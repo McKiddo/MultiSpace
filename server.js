@@ -126,12 +126,12 @@ function createBullet(player){
     var bulletSpeed = bullet0Speed;
     var timeout = 200;
 
-    if (player.streak >= 3){
+    if (player.streak >= 1){
         type = 1;
         bulletSpeed = bullet1Speed;
         timeout = 100;
     }
-    if (player.streak >= 6){
+    if (player.streak >= 2){
         type = 2;
         bulletSpeed = bullet2Speed;
         timeout = 2000;
