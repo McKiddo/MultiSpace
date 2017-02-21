@@ -21,7 +21,7 @@ let forceLimit = 5000;
 
 let bullet0Speed = 10;
 let bullet1Speed = 30;
-let bullet2Speed = 3;
+let bullet2Speed = 6;
 
 var serverData = {
     'playerList': [],
