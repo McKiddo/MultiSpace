@@ -16,8 +16,8 @@ http.listen(3000, function(){
 
 //Game vars
 let wallFriction = 3;
-let forceModifier = 5000;
-let forceLimit = 5000;
+let forceModifier = 15000;
+let forceLimit = 1000;
 
 var serverData = {
     'playerList': [],
@@ -116,8 +116,8 @@ io.on('connection', function(client){
 
 //All players functions
 function createBullet(player){
-    var speedX = 10 * Math.cos(player.rotation - Math.PI / 2);
-    var speedY = 10 * Math.sin(player.rotation - Math.PI / 2);
+    var speedX = 5 * Math.cos(player.rotation - Math.PI / 2);
+    var speedY = 5 * Math.sin(player.rotation - Math.PI / 2);
 
     var bullet = new Bullet(player.id, player.x, player.y, speedX, speedY, player.rotation);
     serverData.bulletList.push(bullet);
@@ -224,8 +224,8 @@ function bulletMove(){
 	}
 }
 
-//Compute every 10ms
+//Compute every 5ms
 setInterval(function(){
 	playerPhysic();
 	bulletMove();
-}, 10);
+}, 5);
