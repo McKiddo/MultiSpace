@@ -14,8 +14,7 @@ var scale = 0.3;
 
 //Control vars
 var gameState = 0;
-var move = false;
-var fireAllowed = true;
+var applyForce = false;
 var mouse = {
 	'x': 0,
 	'y': 0
@@ -37,13 +36,11 @@ function Player(){
 	this.name = '';
 	this.x = 0;
 	this.y = 0;
-	this.speedX = 0;
-	this.speedY = 0;
 	this.rotation = 0;
+    this.force = 0;
     this.hp = 10;
     this.score = 0;
     this.dead = false;
-    this.fireAllowed = true;
 }
 
 var localServerData = {
@@ -92,38 +89,31 @@ $('#nameForm').submit(function(){
 $('#chatForm').submit(function(){
 	var chatBox = $('#chatBox');
 	var msg = chatBox .val();
-	if (msg != ''){
+	if (msg != '' && msg <= 50){
         chatBox.val('');
 		client.emit('client message', msg);
 	}
 	return false;
 });
 
-$('#mainCanvas').mousemove(function(e){
+$('#mainCanvas').on('mousemove', function(e){
 	mouse.x = e.pageX;
 	mouse.y = e.pageY;
 })
-				.mousedown(function(e){
+				.on('mousedown', function(e){
 	if (e.which == 1) {
-		move = true;
+		applyForce = true;
 	}
 })
-				.mouseup(function(e){
+				.on('mouseup', function(e){
 	if (e.which == 1) {
-		move = false;
+		applyForce = false;
 	}
 });
 
-$(document).keydown(function(e){
-	if (fireAllowed && e.keyCode == 90 && e.target.tagName.toLowerCase() != 'input') {
+$(document).on('keydown', function(e){
+	if (e.keyCode == 90 && e.target.tagName.toLowerCase() != 'input') {
 		client.emit('shot fired');
-		fireAllowed = false;
-	}
-});
-
-$(document).keyup(function(e){
-	if (e.keyCode == 90) {
-		fireAllowed = true;
 	}
 });
 
@@ -133,11 +123,8 @@ $(window).on('resize', function(){
 });
 
 function beginGame(){
-    thisPlayer.x = Math.random() * ((localServerData.planeSize.x - 10) - 10) + 10;
-    thisPlayer.y = Math.random() * ((localServerData.planeSize.y - 10) - 10) + 10;
     client.emit('respawn');
 	gameState = 1;
-	console.log('client respawn');
 }
 
 function readPlayer() {
@@ -145,15 +132,12 @@ function readPlayer() {
         return e.id == thisPlayer.id;
     })[0];
 
+    thisPlayer.x = thisPlayerServer.x;
+    thisPlayer.y = thisPlayerServer.y;
 	thisPlayer.name = thisPlayerServer.name;
     thisPlayer.hp = thisPlayerServer.hp;
     thisPlayer.score = thisPlayerServer.score;
     thisPlayer.dead = thisPlayerServer.dead;
-    thisPlayer.fireAllowed = thisPlayerServer.fireAllowed;
-}
-
-function sendData(){
-	client.emit('client data', thisPlayer);
 }
 
 function getOffset(){
@@ -191,34 +175,20 @@ function getOffset(){
 	}
 }
 
-function physic(){
-	if (move){
-		thisPlayer.speedX += (mouse.x - (window.innerWidth / 2) + cameraPan.x) / 3000;
-		thisPlayer.speedY += (mouse.y - (window.innerHeight / 2) + cameraPan.y) / 3000;
-	}
+function sendData(){
+	if (applyForce){
+        var x = mouse.x - window.innerWidth / 2 + cameraPan.x;
+        var y = mouse.y - window.innerHeight / 2 + cameraPan.y;
 
-	var wallFriction = 3;
-
-	if (thisPlayer.x < 0 || thisPlayer.x > localServerData.planeSize.x){
-		thisPlayer.speedX = -thisPlayer.speedX;
-		thisPlayer.x += thisPlayer.speedX;
-		thisPlayer.x += thisPlayer.speedX;
-		thisPlayer.speedX = thisPlayer.speedX / wallFriction;
+        thisPlayer.force = Math.hypot(x, y);
 	} else {
-		thisPlayer.x += thisPlayer.speedX;
+		thisPlayer.force = 0;
 	}
 
-	if (thisPlayer.y < 0 || thisPlayer.y > localServerData.planeSize.y){
-		thisPlayer.speedY = -thisPlayer.speedY;
-		thisPlayer.y += thisPlayer.speedY;
-		thisPlayer.y += thisPlayer.speedY;
-		thisPlayer.speedY = thisPlayer.speedY / wallFriction;
-	} else {
-		thisPlayer.y += thisPlayer.speedY;
-	}
+	thisPlayer.rotation = Math.atan2(mouse.y - window.innerHeight / 2 + cameraPan.y,
+									 mouse.x - window.innerWidth / 2 + cameraPan.x) + Math.PI / 2;
 
-	thisPlayer.rotation = Math.atan2(mouse.y - window.innerHeight / 2 + cameraPan.y, mouse.x - window.innerWidth / 2 + cameraPan.x) + Math.PI / 2;
-	sendData();
+    client.emit('client data', thisPlayer);
 }
 
 function drawSelf(){
@@ -228,11 +198,11 @@ function drawSelf(){
 	context.translate(-(window.innerWidth / 2 - cameraPan.x), -(window.innerHeight / 2 - cameraPan.y));
 	context.drawImage(playerImg, window.innerWidth / 2 - playerImg.width * scale / 2 - cameraPan.x, window.innerHeight / 2 - playerImg.height * scale / 2 - cameraPan.y, playerImg.width * scale, playerImg.height * scale);
 	context.restore();
-	
+
 	context.font = '8pt Roboto';
 	context.textAlign = 'center';
 	context.fillStyle = 'black';
-	
+
 	var displayText = thisPlayer.name + ' : ' + thisPlayer.score;
 	context.fillText(displayText, window.innerWidth / 2 - cameraPan.x, window.innerHeight / 2 - cameraPan.y - 27);
 	context.fillRect(window.innerWidth / 2 - 15 + 1.5 * (10 - thisPlayer.hp) - cameraPan.x, window.innerHeight / 2 - cameraPan.y - 25, 3 * thisPlayer.hp, 3);
@@ -249,7 +219,7 @@ function drawPlayers(playerList){
 			context.translate(-(player.x + offset.x), -(player.y + offset.y));
 			context.drawImage(playerImg, player.x + offset.x - playerImg.width * scale / 2, player.y + offset.y - playerImg.height * scale / 2, playerImg.width * scale, playerImg.height * scale);
 			context.restore();
-			
+
 			context.font = '8pt Roboto';
 			context.textAlign = 'center';
 			context.fillStyle = 'black';
@@ -278,22 +248,22 @@ function drawBullets(bulletList){
 function drawBounds(){
 	context.fillStyle = '#efefef';
 	context.fillRect(0, 0, window.innerWidth, window.innerHeight);
-	
+
 	context.fillStyle = '#ffffff';
 	context.fillRect(offset.x, offset.y, localServerData.planeSize.x, localServerData.planeSize.y);
-	
+
 	context.fillStyle = '#dbdbdb';
-	
+
 	var planeMarksScale = 500;
-	
+
 	for (var i = 1; i < localServerData.planeSize.x / planeMarksScale; i++){
 		context.fillRect(i * planeMarksScale + offset.x, offset.y, 2, localServerData.planeSize.y);
 	}
-	
+
 	for (i = 1; i < localServerData.planeSize.y / planeMarksScale; i++){
 		context.fillRect(offset.x, i * planeMarksScale + offset.y, localServerData.planeSize.x, 2);
 	}
-	
+
 	context.strokeRect(offset.x, offset.y, localServerData.planeSize.x, localServerData.planeSize.y);
 }
 
@@ -306,13 +276,13 @@ function drawScoreboard(playerList){
 			if(keyA < keyB) return 1;
 			return 0;
 		});
-	
+
 	context.font = '14pt Roboto';
 	context.textAlign = 'right';
 	context.fillStyle = 'black';
 	context.fillText('Players', window.innerWidth - 30, 40);
 	context.font = '10pt Roboto';
-	
+
 	for (var i = 0; i < scoreList.length; i++){
 		var player = scoreList[i];
 		var displayText = player.name + ' : ' + player.score;
@@ -328,10 +298,10 @@ function drawChat(){
 	context.font = '10pt Roboto';
 	context.textAlign = 'right';
 	context.fillStyle = 'black';
-	
+
 	for (var i = 0; i < messageList.length; i++){
 		var message = messageList[i];
-		
+
 		context.fillText(message, window.innerWidth - 30, window.innerHeight - 80 - 20 * i);
 	}
 }
@@ -365,9 +335,9 @@ function drawDead(){
 window.setInterval(function(){
 	getOffset();
 	if (gameState == 1){
-		physic();
+        sendData();
 	}
-	
+
 	context.clearRect(0, 0, canvas.width, canvas.height);
 	drawBounds();
 	drawBullets(localServerData.bulletList);

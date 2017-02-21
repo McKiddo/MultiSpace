@@ -15,6 +15,19 @@ http.listen(3000, function(){
 });
 
 //Game vars
+let wallFriction = 3;
+let forceModifier = 5000;
+let forceLimit = 5000;
+
+var serverData = {
+    'playerList': [],
+    'bulletList': [],
+    'planeSize': {
+        'x': 2000,
+        'y': 1500
+    }
+};
+
 function Player(id){
 	this.id = id;
 	this.name = '';
@@ -23,6 +36,7 @@ function Player(id){
     this.speedX = 0;
     this.speedY = 0;
 	this.rotation = 0;
+    this.force = 0;
 	this.hp = 10;
     this.score = 0;
     this.dead = false;
@@ -39,17 +53,7 @@ function Bullet(id, x, y, sx, sy, rotation){
 	this.rotation = rotation;
 }
 
-let planeSize = {
-	'x': 2000,
-	'y': 1500
-};
-
-var serverData = {
-	'playerList': [],
-	'bulletList': [],
-	'planeSize': planeSize
-};
-
+//Per-player functions
 io.on('connection', function(client){
 	console.log('Connected ID: ' + client.id);
 
@@ -64,62 +68,137 @@ io.on('connection', function(client){
 			return player.id != client.id;
 		});
 	});
-	
-	client.on('client message', function(msg){
-		if (msg.length <= 30) {
-            io.emit('server message', msg + ' : ' + player.name);
-        } else {
-			console.log('Attempted illegal message ID: ' + player.id);
-		}
-	});
-	
-	client.on('respawn', function(){
-		var inList = false;
-		
-		for (var i = 0; i < serverData.playerList.length; i++){
-			if (player === serverData.playerList[i]){
-				inList = true;
-			}
-		}
 
-		player.nameSet = true;
-		
-		if (player.dead) {
+    client.on('respawn', function(){
+        var inList = false;
+
+        for (var i = 0; i < serverData.playerList.length; i++){
+            if (player === serverData.playerList[i]){
+                inList = true;
+            }
+        }
+
+        player.x = Math.random() * ((serverData.planeSize.x - 20) - 20) + 20;
+        player.y = Math.random() * ((serverData.planeSize.y - 20) - 20) + 20;
+
+        player.nameSet = true;
+
+        if (player.dead){
             player.hp = 10;
             player.dead = false;
-		}
-        console.log('server respawn');
-	});
+        }
+    });
 	
 	client.on('client data', function(clientPlayer){
 		if (clientPlayer.name.length > 10){
 			clientPlayer.name.substring(0, 10);
 		}
 
-		updatePlayerInList(client.id, clientPlayer.name, clientPlayer.x, clientPlayer.y, clientPlayer.rotation);
+		updatePlayerInList(client.id, clientPlayer.name, clientPlayer.rotation, clientPlayer.force);
 		io.emit('server data', serverData);
 	});
 	
 	client.on('shot fired', function(){
-		if (!player.dead) {
-            var speedX = 10 * Math.cos(player.rotation - Math.PI / 2);
-            var speedY = 10 * Math.sin(player.rotation - Math.PI / 2);
-
-            var bullet = new Bullet(player.id, player.x, player.y, speedX, speedY, player.rotation);
-            serverData.bulletList.push(bullet);
+		if (!player.dead && player.fireAllowed) {
+		    player.fireAllowed = false;
+            createBullet(player);
         }
 	});
+
+    client.on('client message', function(msg){
+        if (msg.length <= 30) {
+            io.emit('server message', msg + ' : ' + player.name);
+        } else {
+            console.log('Attempted illegal message ID: ' + player.id);
+        }
+    });
 });
 
-function updatePlayerInList(id, name, x, y, rotation){
+//All players functions
+function createBullet(player){
+    var speedX = 10 * Math.cos(player.rotation - Math.PI / 2);
+    var speedY = 10 * Math.sin(player.rotation - Math.PI / 2);
+
+    var bullet = new Bullet(player.id, player.x, player.y, speedX, speedY, player.rotation);
+    serverData.bulletList.push(bullet);
+
+    setTimeout(function(){
+        player.fireAllowed = true;
+    }, 200);
+}
+
+function updatePlayerInList(id, name, rotation, force){
 	for (var i = 0; i < serverData.playerList.length; i++){
 		let player = serverData.playerList[i];
 		if (player.id == id){
 			player.name = name;
-			player.x = x;
-			player.y = y;
 			player.rotation = rotation;
+			player.force = force;
 		}
+	}
+}
+
+function playerPhysic(){
+	for (var i = 0; i < serverData.playerList.length; i++){
+        var player = serverData.playerList[i];
+
+		for (var j = 0; j < serverData.bulletList.length; j++){
+		    var bullet = serverData.bulletList[j];
+
+            if (player.id != bullet.id && !player.dead){
+                var a = bullet.x - player.x;
+                var b = bullet.y - player.y;
+                var dist = Math.hypot(a, b);
+
+                if (dist < 20){
+                    serverData.bulletList.splice(i, 1);
+                    player.hp -= 1;
+
+                    if (player.hp <= 0){
+                        io.emit('death', player.id, bullet.id);
+                        player.dead = true;
+
+                        var killer = serverData.playerList.filter(function(e){
+                            return e.id == bullet.id;
+                        });
+
+                        if (killer[0] != undefined) {
+                            killer[0].score += 1;
+                        }
+                    }
+                }
+            }
+		}
+
+		if (player.force < 0){
+			player.force = 0;
+		} else if (player.force > forceLimit) {
+			player.force = forceLimit;
+		}
+
+		player.speedX += Math.sin(player.rotation) * player.force / forceModifier;
+        player.speedY -= Math.cos(player.rotation) * player.force / forceModifier;
+
+        player.x += player.speedX;
+        player.y += player.speedY;
+
+        if (player.x < 10 || player.x > serverData.planeSize.x - 10){
+            player.speedX = -player.speedX;
+            player.x += player.speedX;
+            player.x += player.speedX;
+            player.speedX = player.speedX / wallFriction;
+        } else {
+            player.x += player.speedX;
+        }
+
+        if (player.y < 10 || player.y > serverData.planeSize.y - 10){
+            player.speedY = -player.speedY;
+            player.y += player.speedY;
+            player.y += player.speedY;
+            player.speedY = player.speedY / wallFriction;
+        } else {
+            player.y += player.speedY;
+        }
 	}
 }
 
@@ -145,41 +224,8 @@ function bulletMove(){
 	}
 }
 
-function bulletCollision(){
-	for (var i = 0; i < serverData.bulletList.length; i++){
-		let bullet = serverData.bulletList[i];
-		for (var j = 0; j < serverData.playerList.length; j++){
-			let player = serverData.playerList[j];
-		
-			if (player.id != bullet.id && !player.dead){
-				var a = bullet.x - player.x;
-				var b = bullet.y - player.y;
-				var dist = Math.hypot(a, b);
-			
-				if (dist < 20){
-					serverData.bulletList.splice(i, 1);
-					player.hp -= 1;
-					
-					if (player.hp <= 0){
-						io.emit('death', player.id, bullet.id);
-						player.dead = true;
-						
-						var killer = serverData.playerList.filter(function(e){
-							return e.id == bullet.id;
-						});
-						
-						if (killer[0] != undefined) {
-							killer[0].score += 1;
-						}
-					}
-				}
-			}
-		}
-	}
-}
-
 //Compute every 10ms
 setInterval(function(){
+	playerPhysic();
 	bulletMove();
-	bulletCollision();
 }, 10);
