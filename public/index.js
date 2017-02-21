@@ -209,7 +209,8 @@ function drawSelf(){
 
 	if (thisPlayer.streak >= 1){
 		type = '★'
-	} else if (thisPlayer.streak >= 2){
+	}
+	if (thisPlayer.streak >= 2){
 		type = '☢'
 	}
 
@@ -243,7 +244,8 @@ function drawPlayers(playerList){
 
             if (player.streak >= 1){
                 type = '★'
-            } else if (player.streak >= 2){
+            }
+            if (player.streak >= 2){
                 type = '☢'
             }
 
