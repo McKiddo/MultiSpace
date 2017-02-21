@@ -28,7 +28,6 @@ var cameraPan = {
 	'y': 0
 };
 
-var name = '';
 var killerID = 0;
 
 function Player(){
@@ -49,8 +48,9 @@ var localServerData = {
 	'bulletList': [],
 	'planeSize': {
 		'x': 0,
-		'y': 0
-	}
+		'y': 0},
+	'bullet1stk': 1,
+    'bullet2stk': 2
 };
 var thisPlayer = new Player();
 
@@ -75,7 +75,7 @@ client.on('server message', function(msg){
 
 //Pre-game functions
 $('#nameForm').submit(function(){
-	name = $('#textBox').val();
+	var name = $('#textBox').val();
 	if (name != '' && name.length <= 15){
 		thisPlayer.name = name;
 		$('#nameForm').hide();
@@ -124,7 +124,7 @@ $(window).on('resize', function(){
 });
 
 function beginGame(){
-    client.emit('respawn');
+    client.emit('respawn', thisPlayer.name);
 	gameState = 1;
 }
 
@@ -205,16 +205,16 @@ function drawSelf(){
 	context.textAlign = 'center';
 	context.fillStyle = 'black';
 
-	var type = '-';
+	var type = '';
 
-	if (thisPlayer.streak >= 1){
-		type = '★'
+	if (thisPlayer.streak >= localServerData.bullet1stk){
+		type = ' ★'
 	}
-	if (thisPlayer.streak >= 2){
-		type = '☢'
+	if (thisPlayer.streak >= localServerData.bullet2stk){
+		type = ' ☢'
 	}
 
-	var displayText = thisPlayer.name + ' ' + type;
+	var displayText = thisPlayer.name + type;
 	context.fillText(displayText, window.innerWidth / 2 - cameraPan.x, window.innerHeight / 2 - cameraPan.y - 27);
 	context.fillRect(window.innerWidth / 2 - 15 + 1.5 * (10 - thisPlayer.hp) - cameraPan.x, window.innerHeight / 2 - cameraPan.y - 25, 3 * thisPlayer.hp, 3);
 }
@@ -240,16 +240,16 @@ function drawPlayers(playerList){
 			context.textAlign = 'center';
 			context.fillStyle = 'black';
 
-            var type = '-';
+            var type = '';
 
-            if (player.streak >= 1){
-                type = '★'
+            if (player.streak >= localServerData.bullet1stk){
+                type = ' ★'
             }
-            if (player.streak >= 2){
-                type = '☢'
+            if (player.streak >= localServerData.bullet2stk){
+                type = ' ☢'
             }
 
-			var displayText = player.name + ' ' + type;
+			var displayText = player.name + type;
 			context.fillText(displayText, player.x  + offset.x, player.y + offset.y - 27);
 			context.fillRect(player.x + offset.x - 15 + 1.5 * (10 - player.hp), player.y + offset.y - 25, 3 * player.hp, 3);
 			context.globalAlpha = 1;

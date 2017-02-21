@@ -16,20 +16,21 @@ http.listen(3000, function(){
 
 //Game vars
 let wallFriction = 3;
-let forceModifier = 8000;
+let forceModifier = 1000;
 let forceLimit = 5000;
 
-let bullet0Speed = 10;
-let bullet1Speed = 30;
-let bullet2Speed = 6;
+let bullet0Speed = 20;
+let bullet1Speed = 60;
+let bullet2Speed = 12;
 
 var serverData = {
     'playerList': [],
     'bulletList': [],
     'planeSize': {
         'x': 2000,
-        'y': 1500
-    }
+        'y': 1500},
+    'bullet1stk': 1,
+    'bullet2stk': 2
 };
 
 function Player(id){
@@ -75,20 +76,18 @@ io.on('connection', function(client){
 		});
 	});
 
-    client.on('respawn', function(){
-        var inList = false;
-
-        for (var i = 0; i < serverData.playerList.length; i++){
-            var listedPlayer = serverData.playerList[i];
-            if (listedPlayer.id == player.id){
-                inList = true;
-            }
+    client.on('respawn', function(name){
+        if (name.length <= 15){
+            name.substring(0, 10);
         }
 
+        player.name = name;
+        player.nameSet = true;
+
+        player.speedX = 0;
+        player.speedY = 0;
         player.x = Math.random() * ((serverData.planeSize.x - 20) - 20) + 20;
         player.y = Math.random() * ((serverData.planeSize.y - 20) - 20) + 20;
-
-        player.nameSet = true;
 
         if (player.dead){
             player.hp = 10;
@@ -98,11 +97,7 @@ io.on('connection', function(client){
     });
 	
 	client.on('client data', function(clientPlayer){
-		if (clientPlayer.name.length <= 15){
-			clientPlayer.name.substring(0, 10);
-		}
-
-		updatePlayerInList(client.id, clientPlayer.name, clientPlayer.rotation, clientPlayer.force);
+        updatePlayerInList(client.id, clientPlayer.name, clientPlayer.rotation, clientPlayer.force);
 		io.emit('server data', serverData);
 	});
 	
@@ -253,8 +248,8 @@ function bulletMove(){
 	}
 }
 
-//Compute every 10ms
+//Compute every 20ms
 setInterval(function(){
 	playerPhysics();
 	bulletMove();
-}, 10);
+}, 20);
