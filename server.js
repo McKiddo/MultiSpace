@@ -98,7 +98,7 @@ io.on('connection', function(client){
     });
 	
 	client.on('client data', function(clientPlayer){
-		if (clientPlayer.name.length > 15){
+		if (clientPlayer.name.length <= 15){
 			clientPlayer.name.substring(0, 10);
 		}
 
