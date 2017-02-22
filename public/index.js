@@ -16,6 +16,9 @@ function Buffer(id) {
 var thisBuffer = new Buffer(0);
 var bufferList = [];
 
+//Sound
+var chatSound = new Audio('chat.wav');
+
 //Player appearance
 var playerImg = new Image();
 playerImg.src = 'player.png';
@@ -82,6 +85,7 @@ client.on('server message', function(msg){
 		messageList.pop();
 	}
 	messageList.unshift(msg);
+	chatSound.play();
 });
 
 //Pre-game functions
@@ -160,7 +164,6 @@ function readPlayer() {
     thisPlayer.y = thisPlayerServer.y;
     thisPlayer.speedX = thisPlayerServer.speedX;
     thisPlayer.speedY = thisPlayerServer.speedY;
-	thisPlayer.name = thisPlayerServer.name;
     thisPlayer.hp = thisPlayerServer.hp;
     thisPlayer.score = thisPlayerServer.score;
     thisPlayer.streak = thisPlayerServer.streak;
