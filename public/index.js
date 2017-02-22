@@ -8,7 +8,6 @@ context.canvas.width = window.innerWidth;
 context.canvas.height = window.innerHeight;
 
 //Lag compensation
-var lagComp = false;
 function Buffer(id) {
     this.id = id;
     this.x = -1;
@@ -89,8 +88,6 @@ client.on('server message', function(msg){
 $('#nameForm').submit(function(){
 	var name = $('#textBox').val();
 	if (name != '' && name.length <= 15){
-		lagComp = $('#checkBox').is(':checked');
-		console.log(lagComp);
 		thisPlayer.name = name;
 		$('#nameForm').hide();
 		$('#mainCanvas').css('display', 'block');
@@ -420,9 +417,7 @@ window.setInterval(function(){
         sendData();
 	}
 
-	if (lagComp) {
-        lagCompStart();
-    }
+	lagCompStart();
 
 	context.clearRect(0, 0, canvas.width, canvas.height);
 	drawBounds();
@@ -435,7 +430,5 @@ window.setInterval(function(){
 		drawDead();
 	}
 
-    if (lagComp) {
-        lagCompEnd();
-    }
+	lagCompEnd();
 }, 10);

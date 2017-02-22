@@ -16,8 +16,8 @@ http.listen(3000, function(){
 
 //Game vars
 let wallFriction = 3;
-let forceModifier = 700;
-let forceLimit = 500;
+let forceModifier = 1000;
+let forceLimit = 700;
 
 let bullet0Speed = 20;
 let bullet1Speed = 60;
