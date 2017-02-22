@@ -126,17 +126,17 @@ function createBullet(player){
     var bulletSpeed = pistolSpeed;
     var timeout = 200;
 
-    if (player.streak >= serverData.bullet1stk){
+    if (player.streak >= serverData.autoStk){
         type = 1;
         bulletSpeed = autoSpeed;
         timeout = 100;
     }
-    if (player.streak >= serverData.bullet2stk){
+    if (player.streak >= serverData.shotgunStk){
         type = 2;
         bulletSpeed = shotgunSpeed;
         timeout = 1000;
     }
-    if (player.streak >= serverData.bullet3stk){
+    if (player.streak >= serverData.nukeStk){
         type = 3;
         bulletSpeed = nukeSpeed;
         timeout = 2000;
