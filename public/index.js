@@ -134,6 +134,18 @@ $(window).on('resize', function(){
 	context.canvas.height = window.innerHeight;
 });
 
+function lagCompStart(){
+    if (thisPlayer.x == thisBuffer.x && thisPlayer.y == thisBuffer.y){
+        thisPlayer.x += thisPlayer.speedX;
+        thisPlayer.y += thisPlayer.speedY;
+    }
+}
+
+function lagCompEnd() {
+    thisBuffer.x = thisPlayer.x;
+    thisBuffer.y = thisPlayer.y;
+}
+
 function beginGame(){
     client.emit('respawn', thisPlayer.name);
 	gameState = 1;
@@ -207,11 +219,6 @@ function sendData(){
 }
 
 function drawSelf(){
-    if (thisPlayer.x == thisBuffer.x && thisPlayer.y == thisBuffer.y){
-        thisPlayer.x += thisPlayer.speedX;
-        thisPlayer.y += thisPlayer.speedY;
-    }
-
 	context.save();
 	context.translate(window.innerWidth / 2 - cameraPan.x, window.innerHeight / 2 - cameraPan.y);
 	context.rotate(thisPlayer.rotation);
@@ -235,9 +242,6 @@ function drawSelf(){
 	var displayText = thisPlayer.name + type;
 	context.fillText(displayText, window.innerWidth / 2 - cameraPan.x, window.innerHeight / 2 - cameraPan.y - 27);
 	context.fillRect(window.innerWidth / 2 - 15 + 1.5 * (10 - thisPlayer.hp) - cameraPan.x, window.innerHeight / 2 - cameraPan.y - 25, 3 * thisPlayer.hp, 3);
-
-    thisBuffer.x = thisPlayer.x;
-    thisBuffer.y = thisPlayer.y;
 }
 
 function drawPlayers(playerList){
@@ -404,6 +408,8 @@ function drawDead(){
 
 //Compute every 10ms
 window.setInterval(function(){
+	lagCompStart();
+
 	getOffset();
 	if (gameState == 1){
         sendData();
@@ -421,4 +427,6 @@ window.setInterval(function(){
 	if (gameState == 2){
 		drawDead();
 	}
+
+	lagCompEnd();
 }, 5);
