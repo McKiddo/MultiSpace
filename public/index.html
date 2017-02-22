@@ -37,6 +37,13 @@
 				width: 33%;
 				left: 33%;
 			}
+
+			#lagCompCheckBox {
+				position: relative;
+				text-align: left;
+				left: 30px;
+				bottom: 10px;
+			}
 			
 			#mainCanvas {
 				display: none;
@@ -83,6 +90,10 @@
 			</div>
 			<button class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect" id='startButton'>Start</button>
 			<br><span style="font-size: 16px;">Move with mouse. Press/Hold Z to shoot.<br>Make kill streaks to get new weapons.</span><br>
+			<label id="lagCompCheckBox" class="mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect" for="checkBox">
+				<input type="checkbox" id="checkBox" class="mdl-checkbox__input">
+				<span class="mdl-checkbox__label">Lag compensation. May help with snappy movement.</span>
+			</label>
 		</form>
 		
 		<canvas id='mainCanvas'></canvas>

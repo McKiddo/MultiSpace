@@ -16,8 +16,8 @@ http.listen(3000, function(){
 
 //Game vars
 let wallFriction = 3;
-let forceModifier = 1000;
-let forceLimit = 5000;
+let forceModifier = 700;
+let forceLimit = 500;
 
 let bullet0Speed = 20;
 let bullet1Speed = 60;
@@ -186,6 +186,10 @@ function playerPhysics(){
                         });
 
                         if (killer[0] != undefined) {
+                            killer[0].hp += 5;
+                            if (killer[0].hp > 10){
+                                killer[0].hp = 10;
+                            }
                             killer[0].score += 1;
                             killer[0].streak += 1;
                         }

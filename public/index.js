@@ -8,6 +8,7 @@ context.canvas.width = window.innerWidth;
 context.canvas.height = window.innerHeight;
 
 //Lag compensation
+var lagComp = false;
 function Buffer(id) {
     this.id = id;
     this.x = -1;
@@ -88,6 +89,8 @@ client.on('server message', function(msg){
 $('#nameForm').submit(function(){
 	var name = $('#textBox').val();
 	if (name != '' && name.length <= 15){
+		lagComp = $('#checkBox').is(':checked');
+		console.log(lagComp);
 		thisPlayer.name = name;
 		$('#nameForm').hide();
 		$('#mainCanvas').css('display', 'block');
@@ -219,6 +222,12 @@ function sendData(){
 }
 
 function drawSelf(){
+	if (thisPlayer.dead){
+		context.globalAlpha = 0.25;
+	} else {
+        context.globalAlpha = 1;
+	}
+
 	context.save();
 	context.translate(window.innerWidth / 2 - cameraPan.x, window.innerHeight / 2 - cameraPan.y);
 	context.rotate(thisPlayer.rotation);
@@ -302,14 +311,14 @@ function drawBullets(bulletList){
 		context.translate(bullet.x  + offset.x, bullet.y + offset.y);
 		context.rotate(bullet.rotation);
 		context.translate(-(bullet.x  + offset.x), -(bullet.y + offset.y));
-		context.fillStyle = "grey";
+		context.fillStyle = "black";
 
 		var width = 2;
 		var height = 10;
 
 		if (bullet.type == 1){
             width = 2;
-            height = 40;
+            height = 25;
 		} else if (bullet.type == 2){
             width = 8;
             height = 8;
@@ -321,9 +330,6 @@ function drawBullets(bulletList){
 }
 
 function drawBounds(){
-	context.fillStyle = '#efefef';
-	context.fillRect(0, 0, window.innerWidth, window.innerHeight);
-
 	context.fillStyle = '#ffffff';
 	context.fillRect(offset.x, offset.y, localServerData.planeSize.x, localServerData.planeSize.y);
 
@@ -393,6 +399,7 @@ client.on('death', function(deathID, bulletID){
 });
 
 function drawDead(){
+	context.globalAlpha = 1;
 	context.textAlign = 'center';
 	context.font = '60px Roboto';
 	context.fillStyle = 'grey';
@@ -413,20 +420,22 @@ window.setInterval(function(){
         sendData();
 	}
 
-    lagCompStart();
+	if (lagComp) {
+        lagCompStart();
+    }
 
 	context.clearRect(0, 0, canvas.width, canvas.height);
 	drawBounds();
 	drawBullets(localServerData.bulletList);
 	drawPlayers(localServerData.playerList);
-	if (gameState == 1){
-		drawSelf();
-	}
+	drawSelf();
 	drawScoreboard(localServerData.playerList);
 	drawChat();
 	if (gameState == 2){
 		drawDead();
 	}
 
-	lagCompEnd();
-}, 5);
+    if (lagComp) {
+        lagCompEnd();
+    }
+}, 10);
