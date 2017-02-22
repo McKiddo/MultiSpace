@@ -289,13 +289,13 @@ function drawPlayers(playerList){
 
             var type = '';
 
-            if (player.streak >= localServerData.bullet1stk){
+            if (player.streak >= localServerData.autoStk){
                 type = ' ☆'
             }
-            if (player.streak >= localServerData.bullet2stk){
+            if (player.streak >= localServerData.shotgunStk){
                 type = ' ★'
             }
-            if (player.streak >= localServerData.bullet3stk){
+            if (player.streak >= localServerData.nukeStk){
                 type = ' ☢'
             }
 
