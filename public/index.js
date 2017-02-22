@@ -408,12 +408,12 @@ function drawDead(){
 
 //Compute every 10ms
 window.setInterval(function(){
-	lagCompStart();
-
 	getOffset();
 	if (gameState == 1){
         sendData();
 	}
+
+    lagCompStart();
 
 	context.clearRect(0, 0, canvas.width, canvas.height);
 	drawBounds();
