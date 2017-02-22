@@ -63,8 +63,9 @@ var localServerData = {
 	'planeSize': {
 		'x': 0,
 		'y': 0},
-	'bullet1stk': 1,
-    'bullet2stk': 2
+    'autoStk': 1,
+    'shotgunStk': 2,
+    'nukeStk': 3
 };
 var thisPlayer = new Player();
 
@@ -241,12 +242,15 @@ function drawSelf(){
 
 	var type = '';
 
-	if (thisPlayer.streak >= localServerData.bullet1stk){
+	if (thisPlayer.streak >= localServerData.autoStk){
+		type = ' ☆'
+	}
+	if (thisPlayer.streak >= localServerData.shotgunStk){
 		type = ' ★'
 	}
-	if (thisPlayer.streak >= localServerData.bullet2stk){
-		type = ' ☢'
-	}
+    if (thisPlayer.streak >= localServerData.nukeStk){
+        type = ' ☢'
+    }
 
 	var displayText = thisPlayer.name + type;
 	context.fillText(displayText, window.innerWidth / 2 - cameraPan.x, window.innerHeight / 2 - cameraPan.y - 27);
@@ -286,9 +290,12 @@ function drawPlayers(playerList){
             var type = '';
 
             if (player.streak >= localServerData.bullet1stk){
-                type = ' ★'
+                type = ' ☆'
             }
             if (player.streak >= localServerData.bullet2stk){
+                type = ' ★'
+            }
+            if (player.streak >= localServerData.bullet3stk){
                 type = ' ☢'
             }
 
@@ -320,6 +327,9 @@ function drawBullets(bulletList){
             width = 2;
             height = 25;
 		} else if (bullet.type == 2){
+            width = 4;
+            height = 6;
+		} else if (bullet.type == 3){
             width = 8;
             height = 8;
 		}

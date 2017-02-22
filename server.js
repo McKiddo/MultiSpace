@@ -15,13 +15,18 @@ http.listen(3000, function(){
 });
 
 //Game vars
+let maxNameLength = 15;
+
 let wallFriction = 3;
 let forceModifier = 1000;
 let forceLimit = 700;
 
-let bullet0Speed = 20;
-let bullet1Speed = 60;
-let bullet2Speed = 12;
+let pistolSpeed = 20;
+let autoSpeed = 40;
+let shotgunSpeed = 20;
+let nukeSpeed = 12;
+
+let shotgunPellets = 5;
 
 var serverData = {
     'playerList': [],
@@ -29,8 +34,9 @@ var serverData = {
     'planeSize': {
         'x': 2000,
         'y': 1500},
-    'bullet1stk': 1,
-    'bullet2stk': 2
+    'autoStk': 1,
+    'shotgunStk': 2,
+    'nukeStk': 3
 };
 
 function Player(id){
@@ -76,12 +82,7 @@ io.on('connection', function(client){
 		});
 	});
 
-    client.on('respawn', function(name){
-        if (name.length <= 15){
-            name.substring(0, 10);
-        }
-
-        player.name = name;
+    client.on('respawn', function(){
         player.nameSet = true;
 
         player.speedX = 0;
@@ -97,6 +98,10 @@ io.on('connection', function(client){
     });
 	
 	client.on('client data', function(clientPlayer){
+        if (clientPlayer.name.length > maxNameLength){
+            clientPlayer.name = clientPlayer.name.substring(0, maxNameLength - 1);
+        }
+
         updatePlayerInList(client.id, clientPlayer.name, clientPlayer.rotation, clientPlayer.force);
 		io.emit('server data', serverData);
 	});
@@ -118,25 +123,39 @@ io.on('connection', function(client){
 //All players functions
 function createBullet(player){
     var type = 0;
-    var bulletSpeed = bullet0Speed;
+    var bulletSpeed = pistolSpeed;
     var timeout = 200;
 
-    if (player.streak >= 1){
+    if (player.streak >= serverData.bullet1stk){
         type = 1;
-        bulletSpeed = bullet1Speed;
+        bulletSpeed = autoSpeed;
         timeout = 100;
     }
-    if (player.streak >= 2){
+    if (player.streak >= serverData.bullet2stk){
         type = 2;
-        bulletSpeed = bullet2Speed;
+        bulletSpeed = shotgunSpeed;
+        timeout = 1000;
+    }
+    if (player.streak >= serverData.bullet3stk){
+        type = 3;
+        bulletSpeed = nukeSpeed;
         timeout = 2000;
     }
 
     var speedX = bulletSpeed * Math.cos(player.rotation - Math.PI / 2);
     var speedY = bulletSpeed * Math.sin(player.rotation - Math.PI / 2);
 
-    var bullet = new Bullet(player.id, player.x, player.y, speedX, speedY, player.rotation, type);
-    serverData.bulletList.push(bullet);
+    var bullet;
+
+    if (type == 2){
+        for (var i = 0; i < shotgunPellets; i++){
+            bullet = new Bullet(player.id, player.x, player.y, speedX + Math.random() * (5 + 5)  - 5, speedY + Math.random() * (5 + 5)  - 5, player.rotation, type);
+            serverData.bulletList.push(bullet);
+        }
+    } else {
+       bullet = new Bullet(player.id, player.x, player.y, speedX, speedY, player.rotation, type);
+        serverData.bulletList.push(bullet);
+    }
 
     setTimeout(function(){
         player.fireAllowed = true;
@@ -174,10 +193,13 @@ function playerPhysics(){
                     } else if (bullet.type == 1) {
                         player.hp -= 0.5;
                     } else if (bullet.type == 2) {
+                        player.hp -= 1;
+                    } else if (bullet.type == 3) {
                         player.hp -= 10;
                     }
 
                     if (player.hp <= 0){
+                        player.hp = 0;
                         io.emit('death', player.id, bullet.id);
                         player.dead = true;
 
@@ -204,8 +226,10 @@ function playerPhysics(){
 			player.force = forceLimit;
 		}
 
-		player.speedX += Math.sin(player.rotation) * player.force / forceModifier;
-        player.speedY -= Math.cos(player.rotation) * player.force / forceModifier;
+        if (!player.dead) {
+            player.speedX += Math.sin(player.rotation) * player.force / forceModifier;
+            player.speedY -= Math.cos(player.rotation) * player.force / forceModifier;
+        }
 
         player.x += player.speedX;
         player.y += player.speedY;
