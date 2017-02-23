@@ -53,7 +53,6 @@ function Player(id){
     this.score = 0;
     this.dead = false;
     this.fireAllowed = true;
-    this.nameSet = false;
 }
 
 function Bullet(id, x, y, sx, sy, rotation, type){
@@ -73,8 +72,6 @@ io.on('connection', function(client){
     var player = new Player(client.id);
     serverData.playerList.push(player);
 
-    io.emit('server data', serverData);
-	
 	client.on('disconnect', function(){
 		console.log('Disconnected ID: ' + client.id);
 		serverData.playerList = serverData.playerList.filter(function(player){
@@ -83,8 +80,6 @@ io.on('connection', function(client){
 	});
 
     client.on('respawn', function(){
-        player.nameSet = true;
-
         player.speedX = 0;
         player.speedY = 0;
         player.x = Math.random() * ((serverData.planeSize.x - 20) - 20) + 20;
@@ -96,16 +91,15 @@ io.on('connection', function(client){
             player.dead = false;
         }
     });
-	
-	client.on('client data', function(clientPlayer){
-        if (clientPlayer.name.length > maxNameLength){
-            clientPlayer.name = clientPlayer.name.substring(0, maxNameLength - 1);
-        }
 
-        updatePlayerInList(client.id, clientPlayer.name, clientPlayer.rotation, clientPlayer.force);
-		io.emit('server data', serverData);
-	});
-	
+    client.on('client data', function(clientPlayer){
+            if (clientPlayer.name.length > maxNameLength){
+                clientPlayer.name = clientPlayer.name.substring(0, maxNameLength - 1);
+            }
+            updatePlayerInList(client.id, clientPlayer.name, clientPlayer.rotation, clientPlayer.force);
+            io.emit('server data', serverData);
+        });
+
 	client.on('shot fired', function(){
 		if (!player.dead && player.fireAllowed) {
 		    player.fireAllowed = false;
@@ -164,7 +158,7 @@ function createBullet(player){
 
 function updatePlayerInList(id, name, rotation, force){
 	for (var i = 0; i < serverData.playerList.length; i++){
-		let player = serverData.playerList[i];
+		var player = serverData.playerList[i];
 		if (player.id == id){
 			player.name = name;
 			player.rotation = rotation;

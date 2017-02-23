@@ -57,6 +57,13 @@ function Player(){
     this.dead = false;
 }
 
+function PlayerToSend(id, name, rotation, force){
+    this.id = id;
+    this.name = name;
+    this.rotation = rotation;
+    this.force = force;
+}
+
 var localServerData = {
 	'playerList': [],
 	'bulletList': [],
@@ -219,7 +226,9 @@ function sendData(){
 	thisPlayer.rotation = Math.atan2(mouse.y - window.innerHeight / 2 + cameraPan.y,
 									 mouse.x - window.innerWidth / 2 + cameraPan.x) + Math.PI / 2;
 
-    client.emit('client data', thisPlayer);
+	var playerToSend = new PlayerToSend(thisPlayer.id, thisPlayer.name, thisPlayer.rotation, thisPlayer.force);
+
+    client.emit('client data', playerToSend);
 }
 
 function drawSelf(){
@@ -260,7 +269,7 @@ function drawSelf(){
 function drawPlayers(playerList){
 	for (var i = 0; i < playerList.length; i++){
 		let player = playerList[i];
-		if (player.id != thisPlayer.id && player.nameSet){
+		if (player.id != thisPlayer.id){
 		    var buffer = bufferList.filter(function(e){
                 return e.id == player.id;
             });
