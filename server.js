@@ -15,18 +15,23 @@ http.listen(3000, function(){
 });
 
 //Game vars
+var deltaTime;
+var lastTime = Date.now();
+var currentTime;
+
 let maxNameLength = 15;
 
 let wallFriction = 3;
-let forceModifier = 1000;
-let forceLimit = 700;
+let forceModifier = 15000;
+let forceLimit = 500;
 
-let pistolSpeed = 20;
-let autoSpeed = 40;
-let shotgunSpeed = 20;
-let nukeSpeed = 12;
+let pistolSpeed = 1;
+let autoSpeed = 2;
+let shotgunSpeed =1;
+let nukeSpeed = 0.6;
 
 let shotgunPellets = 5;
+let shotgunSpread = 0.1;
 
 var serverData = {
     'playerList': [],
@@ -42,8 +47,8 @@ var serverData = {
 function Player(id){
 	this.id = id;
 	this.name = '';
-	this.x = 0;
-	this.y = 0;
+	this.x = -1;
+	this.y = -1;
     this.speedX = 0;
     this.speedY = 0;
 	this.rotation = 0;
@@ -72,11 +77,14 @@ io.on('connection', function(client){
     var player = new Player(client.id);
     serverData.playerList.push(player);
 
+    client.broadcast.emit('player connected', client.id);
+
 	client.on('disconnect', function(){
 		console.log('Disconnected ID: ' + client.id);
 		serverData.playerList = serverData.playerList.filter(function(player){
 			return player.id != client.id;
 		});
+        client.broadcast.emit('player disconnected', client.id);
 	});
 
     client.on('respawn', function(){
@@ -143,7 +151,7 @@ function createBullet(player){
 
     if (type == 2){
         for (var i = 0; i < shotgunPellets; i++){
-            bullet = new Bullet(player.id, player.x, player.y, speedX + Math.random() * (5 + 5)  - 5, speedY + Math.random() * (5 + 5)  - 5, player.rotation, type);
+            bullet = new Bullet(player.id, player.x, player.y, speedX + Math.random() * shotgunSpread * 2 - shotgunSpread, speedY + Math.random() * shotgunSpread * 2 - shotgunSpread, player.rotation, type);
             serverData.bulletList.push(bullet);
         }
     } else {
@@ -158,11 +166,10 @@ function createBullet(player){
 
 function updatePlayerInList(id, name, rotation, force){
 	for (var i = 0; i < serverData.playerList.length; i++){
-		var player = serverData.playerList[i];
-		if (player.id == id){
-			player.name = name;
-			player.rotation = rotation;
-			player.force = force;
+		if (serverData.playerList[i].id == id){
+            serverData.playerList[i].name = name;
+            serverData.playerList[i].rotation = rotation;
+            serverData.playerList[i].force = force;
 		}
 	}
 }
@@ -221,8 +228,8 @@ function playerPhysics(){
 		}
 
         if (!player.dead) {
-            player.speedX += Math.sin(player.rotation) * player.force / forceModifier;
-            player.speedY -= Math.cos(player.rotation) * player.force / forceModifier;
+            player.speedX += Math.sin(player.rotation) * player.force / forceModifier * deltaTime;
+            player.speedY -= Math.cos(player.rotation) * player.force / forceModifier * deltaTime;
         }
 
         player.x += player.speedX;
@@ -265,13 +272,17 @@ function bulletMove(){
 			}
 		}
 		
-		bullet.x += bullet.speedX;
-		bullet.y += bullet.speedY;
+		bullet.x += bullet.speedX * deltaTime;
+		bullet.y += bullet.speedY * deltaTime;
 	}
 }
 
 //Compute every 20ms
 setInterval(function(){
+    currentTime = Date.now();
+    deltaTime = currentTime - lastTime;
+    lastTime = currentTime;
+
 	playerPhysics();
 	bulletMove();
 }, 20);

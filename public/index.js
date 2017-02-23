@@ -15,6 +15,7 @@ function Buffer(id) {
 }
 var thisBuffer = new Buffer(0);
 var bufferList = [];
+var firstData = true;
 
 //Sound
 var chatSound = new Audio('chat.wav');
@@ -86,6 +87,14 @@ client.on('connect', function(){
 client.on('server data', function(serverData){
 	localServerData = serverData;
 	readPlayer();
+	if (firstData){
+	    for (var i = 0; i < localServerData.playerList.length; i++){
+	        if (localServerData.playerList[i].id != thisPlayer.id) {
+                lagBufferCreate(localServerData.playerList[i].id);
+            }
+        }
+        firstData = false;
+    }
 });
 
 client.on('server message', function(msg){
@@ -94,6 +103,15 @@ client.on('server message', function(msg){
 	}
 	messageList.unshift(msg);
 	chatSound.play();
+});
+
+//Other player lag compensation buffer creation
+client.on('player connected', function(id){
+    lagBufferCreate(id);
+});
+
+client.on('player disconnected', function(id){
+    lagBufferRemove(id);
 });
 
 //Pre-game functions
@@ -145,6 +163,17 @@ $(window).on('resize', function(){
 	context.canvas.width = window.innerWidth;
 	context.canvas.height = window.innerHeight;
 });
+
+function lagBufferCreate(id){
+    var buffer = new Buffer(id);
+    bufferList.push(buffer);
+}
+
+function lagBufferRemove(id){
+    bufferList = bufferList.filter(function(buffer){
+        return buffer.id != id;
+    });
+}
 
 function lagCompStart(){
     if (thisPlayer.x == thisBuffer.x && thisPlayer.y == thisBuffer.y){
@@ -213,6 +242,11 @@ function getOffset(){
 	}
 }
 
+function getRotation(){
+    thisPlayer.rotation = Math.atan2(mouse.y - window.innerHeight / 2 + cameraPan.y,
+                                     mouse.x - window.innerWidth / 2 + cameraPan.x) + Math.PI / 2;
+}
+
 function sendData(){
 	if (applyForce){
         var x = mouse.x - window.innerWidth / 2 + cameraPan.x;
@@ -222,9 +256,6 @@ function sendData(){
 	} else {
 		thisPlayer.force = 0;
 	}
-
-	thisPlayer.rotation = Math.atan2(mouse.y - window.innerHeight / 2 + cameraPan.y,
-									 mouse.x - window.innerWidth / 2 + cameraPan.x) + Math.PI / 2;
 
 	var playerToSend = new PlayerToSend(thisPlayer.id, thisPlayer.name, thisPlayer.rotation, thisPlayer.force);
 
@@ -269,14 +300,16 @@ function drawSelf(){
 function drawPlayers(playerList){
 	for (var i = 0; i < playerList.length; i++){
 		let player = playerList[i];
-		if (player.id != thisPlayer.id){
-		    var buffer = bufferList.filter(function(e){
-                return e.id == player.id;
-            });
+		if (player.id != thisPlayer.id && player.x > 0){
+		    var buffer = $.grep(bufferList, function(e){
+		        return e.id == player.id;
+		    })[0];
 
-            if (player.x == buffer.x && player.y == buffer.y){
-                player.x += player.speedX;
-                player.y += player.speedY;
+		    if (buffer != undefined){
+                if (player.x == buffer.x && player.y == buffer.y){
+                    player.x += player.speedX;
+                    player.y += player.speedY;
+                }
             }
 
 		    if (!player.dead){
@@ -313,8 +346,10 @@ function drawPlayers(playerList){
 			context.fillRect(player.x + offset.x - 15 + 1.5 * (10 - player.hp), player.y + offset.y - 25, 3 * player.hp, 3);
 			context.globalAlpha = 1;
 
-			buffer.x = player.x;
-			buffer.y = player.y;
+            if (buffer != undefined) {
+                buffer.x = player.x;
+                buffer.y = player.y;
+            }
 		}
 	}
 }
@@ -422,10 +457,12 @@ function drawDead(){
 	context.textAlign = 'center';
 	context.font = '60px Roboto';
 	context.fillStyle = 'grey';
-	var killer = $.grep(localServerData.playerList, function(e){ return e.id == killerID; });
+	var killer = $.grep(localServerData.playerList, function(e){
+	    return e.id == killerID;
+	})[0];
 	var deathMessage = '';
-	if (killer[0] != undefined){
-		deathMessage = 'Killed by ' + killer[0].name;
+	if (killer != undefined){
+		deathMessage = 'Killed by ' + killer.name;
 	} else {
 		deathMessage = 'Killed by a ghost. Spooky.';
 	}
@@ -434,23 +471,30 @@ function drawDead(){
 
 //Compute every 10ms
 window.setInterval(function(){
-	getOffset();
-	if (gameState == 1){
-        sendData();
-	}
+    if (gameState == 1 || gameState == 2) {
+        lagCompStart();
 
-	lagCompStart();
+        getOffset();
+        getRotation();
 
-	context.clearRect(0, 0, canvas.width, canvas.height);
-	drawBounds();
-	drawBullets(localServerData.bulletList);
-	drawPlayers(localServerData.playerList);
-	drawSelf();
-	drawScoreboard(localServerData.playerList);
-	drawChat();
-	if (gameState == 2){
-		drawDead();
-	}
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        drawBounds();
+        drawBullets(localServerData.bulletList);
+        drawPlayers(localServerData.playerList);
+        drawSelf();
+        drawScoreboard(localServerData.playerList);
+        drawChat();
 
-	lagCompEnd();
+        lagCompEnd();
+    }
+
+    if (gameState == 2){
+        drawDead();
+    }
 }, 10);
+
+window.setInterval(function () {
+    if (gameState == 1){
+        sendData();
+    }
+}, 40);
