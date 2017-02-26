@@ -1,5 +1,14 @@
 var client = io();
-			
+
+//System vars
+var currentTime;
+var deltaTime;
+var lastTime = Date.now();
+var lastDataTime;
+var reconnectionTime = 2000;
+
+var deltaDifference;
+
 //Canvas
 var canvas = document.getElementById("mainCanvas");
 var context = canvas.getContext("2d");
@@ -56,6 +65,7 @@ function Player(){
     this.streak = 0;
     this.score = 0;
     this.dead = false;
+    this.inGame = false;
 }
 
 function PlayerToSend(id, name, rotation, force){
@@ -67,51 +77,63 @@ function PlayerToSend(id, name, rotation, force){
 
 var localServerData = {
 	'playerList': [],
-	'bulletList': [],
 	'planeSize': {
 		'x': 0,
 		'y': 0},
     'autoStk': 1,
     'shotgunStk': 2,
-    'nukeStk': 3
+    'nukeStk': 3,
+	'bulletDecoy': 0,
+	'maxBulletDecoy': 0,
+    'wallFriction': 3,
+	'hitboxRad': 20,
+	'deltaTime': 0
 };
 var thisPlayer = new Player();
 
+var bulletList = [];
 var messageList = [];
 
-//Client-server interaction
+//Connect to server
 client.on('connect', function(){
 	thisPlayer.id = client.io.engine.id;
 });
 
-client.on('server data', function(serverData){
-	localServerData = serverData;
-	readPlayer();
-	if (firstData){
-	    for (var i = 0; i < localServerData.playerList.length; i++){
-	        if (localServerData.playerList[i].id != thisPlayer.id) {
-                lagBufferCreate(localServerData.playerList[i].id);
-            }
+//Controls
+$('#chatForm').submit(function(){
+    var chatBox = $('#chatBox');
+    var msg = chatBox.val();
+    if (msg != '' && msg.length <= 50){
+        chatBox.val('');
+        client.emit('client message', msg);
+    }
+    return false;
+});
+
+$('#mainCanvas').on('mousemove', function(e){
+    mouse.x = e.pageX;
+    mouse.y = e.pageY;
+})
+    .on('mousedown', function(e){
+        if (e.which == 1) {
+            applyForce = true;
         }
-        firstData = false;
+    })
+    .on('mouseup', function(e){
+        if (e.which == 1) {
+            applyForce = false;
+        }
+    });
+
+$(document).on('keydown', function(e){
+    if (e.keyCode == 90 && e.target.tagName.toLowerCase() != 'input') {
+        client.emit('shot fired');
     }
 });
 
-client.on('server message', function(msg){
-	if (messageList.length > 10){
-		messageList.pop();
-	}
-	messageList.unshift(msg);
-	chatSound.play();
-});
-
-//Other player lag compensation buffer creation
-client.on('player connected', function(id){
-    lagBufferCreate(id);
-});
-
-client.on('player disconnected', function(id){
-    lagBufferRemove(id);
+$(window).on('resize', function(){
+    context.canvas.width = window.innerWidth;
+    context.canvas.height = window.innerHeight;
 });
 
 //Pre-game functions
@@ -127,42 +149,92 @@ $('#nameForm').submit(function(){
 	return false;
 });
 
+function beginGame(){
+    client.emit('respawn', thisPlayer.name);
+    gameState = 1;
+}
+
 //In-game functions
-$('#chatForm').submit(function(){
-	var chatBox = $('#chatBox');
-	var msg = chatBox.val();
-	if (msg != '' && msg.length <= 50){
-        chatBox.val('');
-		client.emit('client message', msg);
-	}
-	return false;
-});
+	//Lag compensation
+function lagCompStart(){
+    if (thisPlayer.x == thisBuffer.x && thisPlayer.y == thisBuffer.y){
+        thisPlayer.x += thisPlayer.speedX * deltaDifference;
+        thisPlayer.y += thisPlayer.speedY * deltaDifference;
 
-$('#mainCanvas').on('mousemove', function(e){
-	mouse.x = e.pageX;
-	mouse.y = e.pageY;
-})
-				.on('mousedown', function(e){
-	if (e.which == 1) {
-		applyForce = true;
-	}
-})
-				.on('mouseup', function(e){
-	if (e.which == 1) {
-		applyForce = false;
-	}
-});
+        if (thisPlayer.x < 10 || thisPlayer.x > localServerData.planeSize.x - 10){
+            thisPlayer.speedX = -thisPlayer.speedX;
+            thisPlayer.x += thisPlayer.speedX * deltaDifference;
+            thisPlayer.x += thisPlayer.speedX * deltaDifference;
+            thisPlayer.speedX = thisPlayer.speedX / localServerData.wallFriction;
+        } else {
+            thisPlayer.x += thisPlayer.speedX * deltaDifference;
+        }
 
-$(document).on('keydown', function(e){
-	if (e.keyCode == 90 && e.target.tagName.toLowerCase() != 'input') {
-		client.emit('shot fired');
-	}
-});
+        if (thisPlayer.y < 10 || thisPlayer.y > localServerData.planeSize.y - 10){
+            thisPlayer.speedY = -thisPlayer.speedY;
+            thisPlayer.y += thisPlayer.speedY * deltaDifference;
+            thisPlayer.y += thisPlayer.speedY * deltaDifference;
+            thisPlayer.speedY = thisPlayer.speedY / localServerData.wallFriction;
+        } else {
+            thisPlayer.y += thisPlayer.speedY * deltaDifference;
+        }
+    }
 
-$(window).on('resize', function(){
-	context.canvas.width = window.innerWidth;
-	context.canvas.height = window.innerHeight;
-});
+    for (var i = 0; i < localServerData.playerList.length; i++){
+        let player = localServerData.playerList[i];
+
+        if (player.id != thisPlayer.id && player.inGame) {
+            var buffer = $.grep(bufferList, function (e) {
+                return e.id == player.id;
+            })[0];
+        }
+
+        if (buffer != undefined){
+            if (player.x == buffer.x && player.y == buffer.y){
+                player.x += player.speedX * deltaDifference;
+                player.y += player.speedY * deltaDifference;
+
+                if (player.x < 10 || player.x > localServerData.planeSize.x - 10){
+                    player.speedX = -player.speedX;
+                    player.x += player.speedX * deltaDifference;
+                    player.x += player.speedX * deltaDifference;
+                    player.speedX = player.speedX / localServerData.wallFriction;
+                } else {
+                    player.x += player.speedX * deltaDifference;
+                }
+
+                if (player.y < 10 || player.y > localServerData.planeSize.y - 10){
+                    player.speedY = -player.speedY;
+                    player.y += player.speedY * deltaDifference;
+                    player.y += player.speedY * deltaDifference;
+                    player.speedY = player.speedY / localServerData.wallFriction;
+                } else {
+                    player.y += player.speedY * deltaDifference;
+                }
+            }
+        }
+	}
+}
+
+function lagCompEnd() {
+    thisBuffer.x = thisPlayer.x;
+    thisBuffer.y = thisPlayer.y;
+
+    for (var i = 0; i < localServerData.playerList.length; i++){
+        let player = localServerData.playerList[i];
+
+        if (player.id != thisPlayer.id && player.inGame) {
+            var buffer = $.grep(bufferList, function (e) {
+                return e.id == player.id;
+            })[0];
+        }
+
+        if (buffer != undefined) {
+            buffer.x = player.x;
+            buffer.y = player.y;
+        }
+	}
+}
 
 function lagBufferCreate(id){
     var buffer = new Buffer(id);
@@ -175,25 +247,47 @@ function lagBufferRemove(id){
     });
 }
 
-function lagCompStart(){
-    if (thisPlayer.x == thisBuffer.x && thisPlayer.y == thisBuffer.y){
-        thisPlayer.x += thisPlayer.speedX;
-        thisPlayer.y += thisPlayer.speedY;
+client.on('player connected', function(id){
+    lagBufferCreate(id);
+});
+
+client.on('player disconnected', function(id){
+    lagBufferRemove(id);
+});
+
+	//Local bullet creation
+client.on('create local bullet', function(currentBulletList){
+	for (var i = 0; i < currentBulletList.length; i++){
+        bulletList.push(currentBulletList[i]);
+	}
+});
+
+	//Data management
+client.on('server data', function(serverData){
+    localServerData = serverData;
+    readPlayer();
+    if (firstData && thisPlayer.inGame){
+        for (var i = 0; i < localServerData.playerList.length; i++){
+            if (localServerData.playerList[i].id != thisPlayer.id) {
+                lagBufferCreate(localServerData.playerList[i].id);
+            }
+        }
+
+        firstData = false;
     }
-}
+    lastDataTime = Date.now();
+});
 
-function lagCompEnd() {
-    thisBuffer.x = thisPlayer.x;
-    thisBuffer.y = thisPlayer.y;
-}
-
-function beginGame(){
-    client.emit('respawn', thisPlayer.name);
-	gameState = 1;
-}
+client.on('server message', function(msg){
+    if (messageList.length > 10){
+        messageList.pop();
+    }
+    messageList.unshift(msg);
+    chatSound.play();
+});
 
 function readPlayer() {
-	var thisPlayerServer = $.grep(localServerData.playerList, function(e){
+    var thisPlayerServer = $.grep(localServerData.playerList, function(e){
         return e.id == thisPlayer.id;
     })[0];
 
@@ -205,8 +299,31 @@ function readPlayer() {
     thisPlayer.score = thisPlayerServer.score;
     thisPlayer.streak = thisPlayerServer.streak;
     thisPlayer.dead = thisPlayerServer.dead;
+    thisPlayer.inGame = thisPlayerServer.inGame;
 }
 
+function sendData(){
+    if (applyForce){
+        var x = mouse.x - window.innerWidth / 2 + cameraPan.x;
+        var y = mouse.y - window.innerHeight / 2 + cameraPan.y;
+
+        thisPlayer.force = Math.hypot(x, y);
+    } else {
+        thisPlayer.force = 0;
+    }
+
+    var playerToSend = new PlayerToSend(thisPlayer.id, thisPlayer.name, thisPlayer.rotation, thisPlayer.force);
+
+    client.emit('client data', playerToSend);
+}
+
+function connectionCheck(){
+	if (!thisPlayer.inGame || (currentTime - lastDataTime > reconnectionTime)){
+		gameState = 3;
+	}
+}
+
+	//Physics
 function getOffset(){
 	offset.x = window.innerWidth / 2 - thisPlayer.x;
 	offset.y = window.innerHeight / 2 - thisPlayer.y;
@@ -247,21 +364,36 @@ function getRotation(){
                                      mouse.x - window.innerWidth / 2 + cameraPan.x) + Math.PI / 2;
 }
 
-function sendData(){
-	if (applyForce){
-        var x = mouse.x - window.innerWidth / 2 + cameraPan.x;
-        var y = mouse.y - window.innerHeight / 2 + cameraPan.y;
+function bulletPhysics(){
+    for (var i = 0; i < bulletList.length; i++){
+        var bullet = bulletList[i];
 
-        thisPlayer.force = Math.hypot(x, y);
-	} else {
-		thisPlayer.force = 0;
-	}
+        if (bullet.decoy > localServerData.maxBulletDecoy) {
+            bulletList.splice(i, 1);
+        } else {
+            bullet.decoy += localServerData.bulletDecoy / localServerData.deltaTime * deltaTime;
 
-	var playerToSend = new PlayerToSend(thisPlayer.id, thisPlayer.name, thisPlayer.rotation, thisPlayer.force);
+            bullet.x += bullet.speedX * deltaTime;
+            bullet.y += bullet.speedY * deltaTime;
+        }
 
-    client.emit('client data', playerToSend);
+        for (var j = 0; j < localServerData.playerList.length; j++){
+        	var player = localServerData.playerList[j];
+
+            if (player.id != bullet.id && !player.dead){
+                var a = bullet.x - player.x;
+                var b = bullet.y - player.y;
+                var dist = Math.hypot(a, b);
+
+                if (dist < 20) {
+                    bulletList.splice(i, 1);
+                }
+			}
+		}
+    }
 }
 
+	//Drawing
 function drawSelf(){
 	if (thisPlayer.dead){
 		context.globalAlpha = 0.25;
@@ -299,23 +431,12 @@ function drawSelf(){
 
 function drawPlayers(playerList){
 	for (var i = 0; i < playerList.length; i++){
-		let player = playerList[i];
-		if (player.id != thisPlayer.id && player.x > 0){
-		    var buffer = $.grep(bufferList, function(e){
-		        return e.id == player.id;
-		    })[0];
-
-		    if (buffer != undefined){
-                if (player.x == buffer.x && player.y == buffer.y){
-                    player.x += player.speedX;
-                    player.y += player.speedY;
-                }
-            }
-
-		    if (!player.dead){
-                context.globalAlpha = 0.8;
-			} else {
+		var player = playerList[i];
+		if (player.id != thisPlayer.id && player.inGame){
+		    if (player.dead){
                 context.globalAlpha = 0.5;
+			} else {
+                context.globalAlpha = 0.8;
 			}
 
 			context.save();
@@ -345,16 +466,11 @@ function drawPlayers(playerList){
 			context.fillText(displayText, player.x  + offset.x, player.y + offset.y - 27);
 			context.fillRect(player.x + offset.x - 15 + 1.5 * (10 - player.hp), player.y + offset.y - 25, 3 * player.hp, 3);
 			context.globalAlpha = 1;
-
-            if (buffer != undefined) {
-                buffer.x = player.x;
-                buffer.y = player.y;
-            }
 		}
 	}
 }
 
-function drawBullets(bulletList){
+function drawBullets(){
 	for (var i = 0; i < bulletList.length; i++){
 		let bullet = bulletList[i];
 		context.globalAlpha = 1;
@@ -469,17 +585,40 @@ function drawDead(){
 	context.fillText(deathMessage, window.innerWidth / 2, window.innerHeight / 2);
 }
 
+function drawReconnect(){
+    context.globalAlpha = 1;
+    context.textAlign = 'center';
+    context.fillStyle = 'grey';
+
+    context.font = '60px Roboto';
+    context.fillText("CONNECTION INTERRUPTED", window.innerWidth / 2, window.innerHeight / 2);
+
+    context.font = '30px Roboto';
+    context.fillText("Reload page to reconnect", window.innerWidth / 2, window.innerHeight / 2 + 50);
+}
+
 //Compute every 10ms
 window.setInterval(function(){
-    if (gameState == 1 || gameState == 2) {
+    currentTime = Date.now();
+    deltaTime = currentTime - lastTime;
+    lastTime = currentTime;
+    deltaDifference = deltaTime / localServerData.deltaTime;
+
+    if (!firstData){
+        connectionCheck();
+	}
+
+    if (gameState != 0) {
         lagCompStart();
 
         getOffset();
         getRotation();
 
+        bulletPhysics();
+
         context.clearRect(0, 0, canvas.width, canvas.height);
         drawBounds();
-        drawBullets(localServerData.bulletList);
+        drawBullets();
         drawPlayers(localServerData.playerList);
         drawSelf();
         drawScoreboard(localServerData.playerList);
@@ -491,6 +630,10 @@ window.setInterval(function(){
     if (gameState == 2){
         drawDead();
     }
+
+    if (gameState == 3){
+    	drawReconnect();
+	}
 }, 10);
 
 window.setInterval(function () {

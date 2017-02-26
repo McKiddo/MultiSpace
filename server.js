@@ -14,41 +14,50 @@ http.listen(3000, function(){
 	console.log('listening on *:3000');
 });
 
-//Game vars
+//System vars
+var refreshRate = 20;
+
 var deltaTime;
 var lastTime = Date.now();
 var currentTime;
 
+//Game consts
 let maxNameLength = 15;
 
-let wallFriction = 3;
 let forceModifier = 15000;
 let forceLimit = 500;
 
 let pistolSpeed = 1;
-let autoSpeed = 2;
-let shotgunSpeed =1;
+let autoSpeed = 1.5;
+let shotgunSpeed = 1;
 let nukeSpeed = 0.6;
 
 let shotgunPellets = 5;
 let shotgunSpread = 0.1;
 
+//Server data
+var bulletList = [];
+
 var serverData = {
     'playerList': [],
-    'bulletList': [],
     'planeSize': {
         'x': 2000,
         'y': 1500},
     'autoStk': 1,
     'shotgunStk': 2,
-    'nukeStk': 3
+    'nukeStk': 3,
+    'bulletDecoy': 1,
+    'maxBulletDecoy': 2000,
+    'wallFriction': 3,
+    'hitboxRad': 19,
+    'deltaTime': 0
 };
 
 function Player(id){
 	this.id = id;
 	this.name = '';
-	this.x = -1;
-	this.y = -1;
+	this.x = 0;
+	this.y = 0;
     this.speedX = 0;
     this.speedY = 0;
 	this.rotation = 0;
@@ -58,16 +67,20 @@ function Player(id){
     this.score = 0;
     this.dead = false;
     this.fireAllowed = true;
+    this.inGame = false;
 }
 
 function Bullet(id, x, y, sx, sy, rotation, type){
 	this.id = id;
 	this.x = x;
 	this.y = y;
+	this.lastX = 0;
+	this.lastY = 0;
 	this.speedX = sx;
 	this.speedY = sy;
 	this.rotation = rotation;
 	this.type = type;
+	this.decoy = 0;
 }
 
 //Per-player functions
@@ -98,6 +111,7 @@ io.on('connection', function(client){
             player.streak = 0;
             player.dead = false;
         }
+        player.inGame = true;
     });
 
     client.on('client data', function(clientPlayer){
@@ -105,13 +119,13 @@ io.on('connection', function(client){
                 clientPlayer.name = clientPlayer.name.substring(0, maxNameLength - 1);
             }
             updatePlayerInList(client.id, clientPlayer.name, clientPlayer.rotation, clientPlayer.force);
-            io.emit('server data', serverData);
         });
 
 	client.on('shot fired', function(){
 		if (!player.dead && player.fireAllowed) {
 		    player.fireAllowed = false;
-            createBullet(player);
+            var currentBulletList = createBullet(player);
+            io.emit('create local bullet', currentBulletList);
         }
 	});
 
@@ -124,6 +138,8 @@ io.on('connection', function(client){
 
 //All players functions
 function createBullet(player){
+    var currentBulletList = [];
+
     var type = 0;
     var bulletSpeed = pistolSpeed;
     var timeout = 200;
@@ -152,16 +168,20 @@ function createBullet(player){
     if (type == 2){
         for (var i = 0; i < shotgunPellets; i++){
             bullet = new Bullet(player.id, player.x, player.y, speedX + Math.random() * shotgunSpread * 2 - shotgunSpread, speedY + Math.random() * shotgunSpread * 2 - shotgunSpread, player.rotation, type);
-            serverData.bulletList.push(bullet);
+            bulletList.push(bullet);
+            currentBulletList.push(bullet);
         }
     } else {
        bullet = new Bullet(player.id, player.x, player.y, speedX, speedY, player.rotation, type);
-        serverData.bulletList.push(bullet);
+        bulletList.push(bullet);
+        currentBulletList.push(bullet);
     }
 
     setTimeout(function(){
         player.fireAllowed = true;
     }, timeout);
+
+    return currentBulletList
 }
 
 function updatePlayerInList(id, name, rotation, force){
@@ -178,16 +198,27 @@ function playerPhysics(){
 	for (var i = 0; i < serverData.playerList.length; i++){
         var player = serverData.playerList[i];
 
-		for (var j = 0; j < serverData.bulletList.length; j++){
-		    var bullet = serverData.bulletList[j];
+		for (var j = 0; j < bulletList.length; j++){
+		    var bullet = bulletList[j];
 
             if (player.id != bullet.id && !player.dead){
-                var a = bullet.x - player.x;
-                var b = bullet.y - player.y;
-                var dist = Math.hypot(a, b);
+                // Unused HitScan detection
+                //var a = Math.abs((bullet.lastY - bullet.y) * player.x -
+                //                 (bullet.lastX - bullet.x) * player.y +
+                //                  bullet.lastX * bullet.y - bullet.lastY * bullet.x);
+                //var b = Math.hypot(bullet.lastY - bullet.y, bullet.lastX - bullet.x);
+                //var dist = a / b;
 
-                if (dist < 20){
-                    serverData.bulletList.splice(j, 1);
+                // Basic hit detection
+                var dist = Math.hypot(bullet.x - player.x, bullet.y - player.y);
+
+                // Accurate hit detection
+                if (serverData.hitboxRad <= refreshRate) {
+                    dist = distanceToLineSegment(bullet.lastX, bullet.lastY, bullet.x, bullet.y, player.x, player.y);
+                }
+
+                if (dist < serverData.hitboxRad){
+                    bulletList.splice(j, 1);
 
                     if (bullet.type == 0) {
                         player.hp -= 1;
@@ -239,7 +270,7 @@ function playerPhysics(){
             player.speedX = -player.speedX;
             player.x += player.speedX;
             player.x += player.speedX;
-            player.speedX = player.speedX / wallFriction;
+            player.speedX = player.speedX / serverData.wallFriction;
         } else {
             player.x += player.speedX;
         }
@@ -248,7 +279,7 @@ function playerPhysics(){
             player.speedY = -player.speedY;
             player.y += player.speedY;
             player.y += player.speedY;
-            player.speedY = player.speedY / wallFriction;
+            player.speedY = player.speedY / serverData.wallFriction;
         } else {
             player.y += player.speedY;
         }
@@ -256,25 +287,55 @@ function playerPhysics(){
 }
 
 function bulletMove(){
-	for (var i = 0; i < serverData.bulletList.length; i++){
-		let bullet = serverData.bulletList[i];
-		for (var j = 0; j < serverData.playerList.length; j++){
-			let player = serverData.playerList[j];
-			
-			if (player.id == bullet.id) {
-				var a = bullet.x - player.x;
-				var b = bullet.y - player.y;
-				var dist = Math.hypot(a, b);
-			
-				if (dist > 2000){
-					serverData.bulletList.splice(i, 1);
-				}
-			}
-		}
-		
-		bullet.x += bullet.speedX * deltaTime;
-		bullet.y += bullet.speedY * deltaTime;
+	for (var i = 0; i < bulletList.length; i++){
+		var bullet = bulletList[i];
+
+		if (bullet.decoy > serverData.maxBulletDecoy) {
+            bulletList.splice(i, 1);
+        } else {
+            bullet.decoy += serverData.bulletDecoy * deltaTime;
+
+            bullet.lastX = bullet.x;
+            bullet.lastY = bullet.y;
+
+            bullet.x += bullet.speedX * deltaTime;
+            bullet.y += bullet.speedY * deltaTime;
+        }
 	}
+}
+
+//Other functions
+function distanceSquaredToLineSegment2(lx1, ly1, ldx, ldy, lineLengthSquared, px, py) {
+    var t; // t===0 at line pt 1 and t ===1 at line pt 2
+    if (!lineLengthSquared) {
+        // 0-length line segment. Any t will return same result
+        t = 0;
+    }
+    else {
+        t = ((px - lx1) * ldx + (py - ly1) * ldy) / lineLengthSquared;
+
+        if (t < 0)
+            t = 0;
+        else if (t > 1)
+            t = 1;
+    }
+
+    var lx = lx1 + t * ldx,
+        ly = ly1 + t * ldy,
+        dx = px - lx,
+        dy = py - ly;
+    return dx*dx + dy*dy;
+}
+
+function distanceSquaredToLineSegment(lx1, ly1, lx2, ly2, px, py) {
+    var ldx = lx2 - lx1,
+        ldy = ly2 - ly1,
+        lineLengthSquared = ldx*ldx + ldy*ldy;
+    return distanceSquaredToLineSegment2(lx1, ly1, ldx, ldy, lineLengthSquared, px, py);
+}
+
+function distanceToLineSegment(lx1, ly1, lx2, ly2, px, py) {
+    return Math.sqrt(distanceSquaredToLineSegment(lx1, ly1, lx2, ly2, px, py));
 }
 
 //Compute every 20ms
@@ -283,6 +344,10 @@ setInterval(function(){
     deltaTime = currentTime - lastTime;
     lastTime = currentTime;
 
+    serverData.deltaTime = deltaTime;
+
 	playerPhysics();
 	bulletMove();
-}, 20);
+
+    io.emit('server data', serverData);
+}, refreshRate);
