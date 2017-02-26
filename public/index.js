@@ -187,14 +187,12 @@ function lagCompStart(){
             var buffer = $.grep(bufferList, function (e) {
                 return e.id == player.id;
             })[0];
-        }
 
-        if (buffer != undefined){
-            if (player.x == buffer.x && player.y == buffer.y){
+            if (buffer != undefined) {
                 player.x += player.speedX * deltaDifference;
                 player.y += player.speedY * deltaDifference;
 
-                if (player.x < 10 || player.x > localServerData.planeSize.x - 10){
+                if (player.x < 10 || player.x > localServerData.planeSize.x - 10) {
                     player.speedX = -player.speedX;
                     player.x += player.speedX * deltaDifference;
                     player.x += player.speedX * deltaDifference;
@@ -203,7 +201,7 @@ function lagCompStart(){
                     player.x += player.speedX * deltaDifference;
                 }
 
-                if (player.y < 10 || player.y > localServerData.planeSize.y - 10){
+                if (player.y < 10 || player.y > localServerData.planeSize.y - 10) {
                     player.speedY = -player.speedY;
                     player.y += player.speedY * deltaDifference;
                     player.y += player.speedY * deltaDifference;
