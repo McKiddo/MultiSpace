@@ -1,6 +1,9 @@
 var client = io();
 
 //System vars
+var drawRate = 10;
+var sendRate = 40;
+
 var currentTime;
 var deltaTime;
 var lastTime = Date.now();
@@ -17,13 +20,6 @@ context.canvas.width = window.innerWidth;
 context.canvas.height = window.innerHeight;
 
 //Lag compensation
-function Buffer(id) {
-    this.id = id;
-    this.x = -1;
-    this.y = -1;
-}
-var thisBuffer = new Buffer(0);
-var bufferList = [];
 var firstData = true;
 
 //Sound
@@ -155,103 +151,55 @@ function beginGame(){
 }
 
 //In-game functions
-	//Lag compensation
-function lagCompStart(){
-    if (thisPlayer.x == thisBuffer.x && thisPlayer.y == thisBuffer.y){
+function lagCompensate(){
+    thisPlayer.x += thisPlayer.speedX * deltaDifference;
+    thisPlayer.y += thisPlayer.speedY * deltaDifference;
+
+    if (thisPlayer.x < 10 || thisPlayer.x > localServerData.planeSize.x - 10){
+        thisPlayer.speedX = -thisPlayer.speedX;
         thisPlayer.x += thisPlayer.speedX * deltaDifference;
+        thisPlayer.x += thisPlayer.speedX * deltaDifference;
+        thisPlayer.speedX = thisPlayer.speedX / localServerData.wallFriction;
+    } else {
+        thisPlayer.x += thisPlayer.speedX * deltaDifference;
+    }
+
+    if (thisPlayer.y < 10 || thisPlayer.y > localServerData.planeSize.y - 10){
+        thisPlayer.speedY = -thisPlayer.speedY;
         thisPlayer.y += thisPlayer.speedY * deltaDifference;
-
-        if (thisPlayer.x < 10 || thisPlayer.x > localServerData.planeSize.x - 10){
-            thisPlayer.speedX = -thisPlayer.speedX;
-            thisPlayer.x += thisPlayer.speedX * deltaDifference;
-            thisPlayer.x += thisPlayer.speedX * deltaDifference;
-            thisPlayer.speedX = thisPlayer.speedX / localServerData.wallFriction;
-        } else {
-            thisPlayer.x += thisPlayer.speedX * deltaDifference;
-        }
-
-        if (thisPlayer.y < 10 || thisPlayer.y > localServerData.planeSize.y - 10){
-            thisPlayer.speedY = -thisPlayer.speedY;
-            thisPlayer.y += thisPlayer.speedY * deltaDifference;
-            thisPlayer.y += thisPlayer.speedY * deltaDifference;
-            thisPlayer.speedY = thisPlayer.speedY / localServerData.wallFriction;
-        } else {
-            thisPlayer.y += thisPlayer.speedY * deltaDifference;
-        }
+        thisPlayer.y += thisPlayer.speedY * deltaDifference;
+        thisPlayer.speedY = thisPlayer.speedY / localServerData.wallFriction;
+    } else {
+        thisPlayer.y += thisPlayer.speedY * deltaDifference;
     }
 
     for (var i = 0; i < localServerData.playerList.length; i++){
         let player = localServerData.playerList[i];
 
         if (player.id != thisPlayer.id && player.inGame) {
-            var buffer = $.grep(bufferList, function (e) {
-                return e.id == player.id;
-            })[0];
+            player.x += player.speedX * deltaDifference;
+            player.y += player.speedY * deltaDifference;
 
-            if (buffer != undefined) {
+            if (player.x < 10 || player.x > localServerData.planeSize.x - 10) {
+                player.speedX = -player.speedX;
                 player.x += player.speedX * deltaDifference;
+                player.x += player.speedX * deltaDifference;
+                player.speedX = player.speedX / localServerData.wallFriction;
+            } else {
+                player.x += player.speedX * deltaDifference;
+            }
+
+            if (player.y < 10 || player.y > localServerData.planeSize.y - 10) {
+                player.speedY = -player.speedY;
                 player.y += player.speedY * deltaDifference;
-
-                if (player.x < 10 || player.x > localServerData.planeSize.x - 10) {
-                    player.speedX = -player.speedX;
-                    player.x += player.speedX * deltaDifference;
-                    player.x += player.speedX * deltaDifference;
-                    player.speedX = player.speedX / localServerData.wallFriction;
-                } else {
-                    player.x += player.speedX * deltaDifference;
-                }
-
-                if (player.y < 10 || player.y > localServerData.planeSize.y - 10) {
-                    player.speedY = -player.speedY;
-                    player.y += player.speedY * deltaDifference;
-                    player.y += player.speedY * deltaDifference;
-                    player.speedY = player.speedY / localServerData.wallFriction;
-                } else {
-                    player.y += player.speedY * deltaDifference;
-                }
+                player.y += player.speedY * deltaDifference;
+                player.speedY = player.speedY / localServerData.wallFriction;
+            } else {
+                player.y += player.speedY * deltaDifference;
             }
         }
 	}
 }
-
-function lagCompEnd() {
-    thisBuffer.x = thisPlayer.x;
-    thisBuffer.y = thisPlayer.y;
-
-    for (var i = 0; i < localServerData.playerList.length; i++){
-        let player = localServerData.playerList[i];
-
-        if (player.id != thisPlayer.id && player.inGame) {
-            var buffer = $.grep(bufferList, function (e) {
-                return e.id == player.id;
-            })[0];
-        }
-
-        if (buffer != undefined) {
-            buffer.x = player.x;
-            buffer.y = player.y;
-        }
-	}
-}
-
-function lagBufferCreate(id){
-    var buffer = new Buffer(id);
-    bufferList.push(buffer);
-}
-
-function lagBufferRemove(id){
-    bufferList = bufferList.filter(function(buffer){
-        return buffer.id != id;
-    });
-}
-
-client.on('player connected', function(id){
-    lagBufferCreate(id);
-});
-
-client.on('player disconnected', function(id){
-    lagBufferRemove(id);
-});
 
 	//Local bullet creation
 client.on('create local bullet', function(currentBulletList){
@@ -264,16 +212,11 @@ client.on('create local bullet', function(currentBulletList){
 client.on('server data', function(serverData){
     localServerData = serverData;
     readPlayer();
-    if (firstData && thisPlayer.inGame){
-        for (var i = 0; i < localServerData.playerList.length; i++){
-            if (localServerData.playerList[i].id != thisPlayer.id) {
-                lagBufferCreate(localServerData.playerList[i].id);
-            }
-        }
+    lastDataTime = Date.now();
 
+    if (firstData && thisPlayer.inGame){
         firstData = false;
     }
-    lastDataTime = Date.now();
 });
 
 client.on('server message', function(msg){
@@ -595,7 +538,7 @@ function drawReconnect(){
     context.fillText("Reload page to reconnect", window.innerWidth / 2, window.innerHeight / 2 + 50);
 }
 
-//Compute every 10ms
+//Main loops
 window.setInterval(function(){
     currentTime = Date.now();
     deltaTime = currentTime - lastTime;
@@ -607,7 +550,7 @@ window.setInterval(function(){
 	}
 
     if (gameState != 0) {
-        lagCompStart();
+        lagCompensate();
 
         getOffset();
         getRotation();
@@ -621,8 +564,6 @@ window.setInterval(function(){
         drawSelf();
         drawScoreboard(localServerData.playerList);
         drawChat();
-
-        lagCompEnd();
     }
 
     if (gameState == 2){
@@ -632,10 +573,10 @@ window.setInterval(function(){
     if (gameState == 3){
     	drawReconnect();
 	}
-}, 10);
+}, drawRate);
 
 window.setInterval(function () {
     if (gameState == 1){
         sendData();
     }
-}, 40);
+}, sendRate);

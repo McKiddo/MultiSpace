@@ -338,7 +338,7 @@ function distanceToLineSegment(lx1, ly1, lx2, ly2, px, py) {
     return Math.sqrt(distanceSquaredToLineSegment(lx1, ly1, lx2, ly2, px, py));
 }
 
-//Compute every 20ms
+//Main loop
 setInterval(function(){
     currentTime = Date.now();
     deltaTime = currentTime - lastTime;
