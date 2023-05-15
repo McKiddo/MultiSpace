@@ -1,7 +1,10 @@
-var express= require('express');
-var app = express();
-var http = require('http').Server(app);
-var io = require('socket.io')(http);
+const express = require('express');
+const app = express();
+const http = require('http');
+const server = http.createServer(app);
+const { Server } = require("socket.io");
+const io = new Server(server);
+
 
 process.env.PWD = process.cwd();
 app.use(express.static(process.env.PWD + '/public'));
@@ -10,8 +13,8 @@ app.get('/', function(req, res){
 	res.sendfile('index.html');
 });
 
-http.listen(3000, function(){
-	console.log('listening on *:3000');
+server.listen(3000, '0.0.0.0', function() {
+    console.log('Listening to port:  ' + 3000);
 });
 
 //System vars
@@ -95,14 +98,15 @@ io.on('connection', function(client){
 	client.on('disconnect', function(){
 		console.log('Disconnected ID: ' + client.id);
 		serverData.playerList = serverData.playerList.filter(function(player){
-			return player.id != client.id;
+			return player.id !== client.id;
 		});
         client.broadcast.emit('player disconnected', client.id);
 	});
 
-    client.on('respawn', function(){
+    client.on('respawn', function(playerName){
         player.speedX = 0;
         player.speedY = 0;
+        player.name = playerName;
         player.x = Math.random() * ((serverData.planeSize.x - 20) - 20) + 20;
         player.y = Math.random() * ((serverData.planeSize.y - 20) - 20) + 20;
 
@@ -112,6 +116,8 @@ io.on('connection', function(client){
             player.dead = false;
         }
         player.inGame = true;
+        updatePlayerInList(client.id, player.name, player.rotation, player.force);
+
     });
 
     client.on('client data', function(clientPlayer){
@@ -185,13 +191,11 @@ function createBullet(player){
 }
 
 function updatePlayerInList(id, name, rotation, force){
-	for (var i = 0; i < serverData.playerList.length; i++){
-		if (serverData.playerList[i].id == id){
-            serverData.playerList[i].name = name;
-            serverData.playerList[i].rotation = rotation;
-            serverData.playerList[i].force = force;
-		}
-	}
+    const playerToUpdate = serverData.playerList.find(player => player.id === id);
+
+    playerToUpdate.name = name;
+    playerToUpdate.rotation = rotation;
+    playerToUpdate.force = force;
 }
 
 function playerPhysics(){
