@@ -90,59 +90,67 @@ var thisPlayer = new Player();
 var bulletList = [];
 var messageList = [];
 
+//Form controls
+const chatBox = document.getElementById('chatBox');
+const chatForm = document.getElementById('chatForm');
+
 //Connect to server
 client.on('connect', function(){
-	thisPlayer.id = client.io.engine.id;
+	thisPlayer.id = client.id;
 });
 
 //Controls
-$('#chatForm').submit(function(){
-    var chatBox = $('#chatBox');
-    var msg = chatBox.val();
-    if (msg != '' && msg.length <= 50){
-        chatBox.val('');
+chatForm.addEventListener("submit", function(e){
+    e.preventDefault();
+
+    var msg = chatBox.value;
+    if (msg !== '' && msg.length <= 50){
+        chatBox.value = '';
         client.emit('client message', msg);
     }
     return false;
-});
+})
 
-$('#mainCanvas').on('mousemove', function(e){
+const mainCanvas = document.getElementById('mainCanvas');
+mainCanvas.addEventListener('mousemove', function(e){
     mouse.x = e.pageX;
     mouse.y = e.pageY;
-})
-    .on('mousedown', function(e){
-        if (e.which == 1) {
-            applyForce = true;
-        }
-    })
-    .on('mouseup', function(e){
-        if (e.which == 1) {
-            applyForce = false;
-        }
-    });
+});
+mainCanvas.addEventListener('mousedown', function(e){
+    if (e.which == 1) {
+        applyForce = true;
+    }
+});
+mainCanvas.addEventListener('mouseup', function(e){
+    if (e.which == 1) {
+        applyForce = false;
+    }
+});
 
-$(document).on('keydown', function(e){
+document.addEventListener('keydown', function(e){
     if (e.keyCode == 90 && e.target.tagName.toLowerCase() != 'input') {
         client.emit('shot fired');
     }
 });
-
-$(window).on('resize', function(){
+    
+window.addEventListener('resize', function(){
     context.canvas.width = window.innerWidth;
     context.canvas.height = window.innerHeight;
 });
-
+    
 //Pre-game functions
-$('#nameForm').submit(function(){
-	var name = $('#textBox').val();
-	if (name != '' && name.length <= 15){
-		thisPlayer.name = name;
-		$('#nameForm').hide();
-		$('#mainCanvas').css('display', 'block');
-		$('#chatForm').css('display', 'block');
-		beginGame();
-	}
-	return false;
+const nameForm = document.getElementById('nameForm');
+nameForm.addEventListener('submit', function(e){
+    e.preventDefault();
+    var name = document.getElementById('textBox').value;
+    if (name != '' && name.length <= 15){
+        thisPlayer.name = name;
+        nameForm.style.display = 'none';
+        mainCanvas.style.display = 'block';
+        chatForm.style.display = 'block';
+        beginGame();
+    }
+    return false;
 });
 
 function beginGame(){
@@ -228,19 +236,9 @@ client.on('server message', function(msg){
 });
 
 function readPlayer() {
-    var thisPlayerServer = $.grep(localServerData.playerList, function(e){
-        return e.id == thisPlayer.id;
-    })[0];
+    var thisPlayerServer = localServerData.playerList.find(e => e.id == thisPlayer.id)
 
-    thisPlayer.x = thisPlayerServer.x;
-    thisPlayer.y = thisPlayerServer.y;
-    thisPlayer.speedX = thisPlayerServer.speedX;
-    thisPlayer.speedY = thisPlayerServer.speedY;
-    thisPlayer.hp = thisPlayerServer.hp;
-    thisPlayer.score = thisPlayerServer.score;
-    thisPlayer.streak = thisPlayerServer.streak;
-    thisPlayer.dead = thisPlayerServer.dead;
-    thisPlayer.inGame = thisPlayerServer.inGame;
+    thisPlayer = { ...thisPlayerServer }
 }
 
 function sendData(){
@@ -514,15 +512,9 @@ function drawDead(){
 	context.textAlign = 'center';
 	context.font = '60px Roboto';
 	context.fillStyle = 'grey';
-	var killer = $.grep(localServerData.playerList, function(e){
-	    return e.id == killerID;
-	})[0];
-	var deathMessage = '';
-	if (killer != undefined){
-		deathMessage = 'Killed by ' + killer.name;
-	} else {
-		deathMessage = 'Killed by a ghost. Spooky.';
-	}
+
+	const killer = localServerData.playerList.find(e => e.id == killerID);
+	const deathMessage = killer ? 'Killed by ' + killer.name : 'Killed by a ghost. Spooky.';
 	context.fillText(deathMessage, window.innerWidth / 2, window.innerHeight / 2);
 }
 
